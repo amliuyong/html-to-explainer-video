@@ -99,7 +99,7 @@ Start a new session afterwards so the agent rescans its skills.
    python scripts/tts_setup.py --project . --provider ali --voice xuyuyuan_v3.1   # writes project.json
    ```
 
-The default voice is `anmingyuan_v3.1` (male, Mandarin); English projects default to `Andy_v3.1`. The 3.1 model only
+The default voice is `xuyuyuan_v3.1` (female, Mandarin); English projects default to `Andy_v3.1`. The 3.1 model only
 accepts `*_v3.1` voices. Speaking rate uses the `+N%` form (new projects default to `+8%`).
 
 > The agent only calls `tts_ali.py`; it **never reads or prints the key file**. If the file is missing,

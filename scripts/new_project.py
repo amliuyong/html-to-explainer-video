@@ -63,7 +63,7 @@ def main() -> int:
         # edge = 免费免密钥；volcano = 火山引擎语音合成 2.0（需 tts.env）。
         # ★ 建项目后先问用户用哪个 —— python <skill>/scripts/tts_setup.py --project .
         "provider": "ali",
-        "voice": "anmingyuan_v3.1" if args.lang == "zh" else "Andy_v3.1",
+        "voice": "xuyuyuan_v3.1" if args.lang == "zh" else "Andy_v3.1",
         "rate": "+8%",
     }
     json.dump(pj, open(os.path.join(proj, "project.json"), "w", encoding="utf-8"),

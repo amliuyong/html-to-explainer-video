@@ -117,7 +117,7 @@ node <skill>/scripts/check_cover.mjs    .             # 封面终态几何实测
 ```
 
 配音引擎（**跑之前必须先问用户**，见确认点 3）：`ali`（**默认**，阿里云百炼
-`qwen-audio-3.1-tts-flash`，字级时间戳，默认音色 `anmingyuan_v3.1`）、`edge`（免费免密钥）或
+`qwen-audio-3.1-tts-flash`，字级时间戳，默认音色 `xuyuyuan_v3.1`）、`edge`（免费免密钥）或
 `volcano`（火山引擎语音合成 2.0，需 API Key）。三者产出的 manifest 结构一致，
 下游零改动。切换：`--provider ali|edge|volcano` 或 `TTS_PROVIDER` 环境变量。
 **阿里密钥只存 `~/ali_tts/api_key.csv` —— agent 只调 `tts_ali.py`，不读、不打印该文件。**

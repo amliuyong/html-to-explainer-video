@@ -93,7 +93,7 @@ bash ~/.claude/skills/html-to-explainer-video/setup_env.sh --install   # 自检 
    python scripts/tts_setup.py --project . --provider ali --voice xuyuyuan_v3.1   # 写进 project.json
    ```
 
-默认音色 `anmingyuan_v3.1`（安明远，男声）；英文项目默认 `Andy_v3.1`。3.1 模型只认 `*_v3.1` 音色。
+默认音色 `xuyuyuan_v3.1`（许玉远，女声）；英文项目默认 `Andy_v3.1`。3.1 模型只认 `*_v3.1` 音色。
 语速沿用 `+N%` 写法（新项目默认 `+8%`）。
 
 > 智能体只调用 `tts_ali.py`，**不读取、不打印密钥文件**。缺文件时 `tts_setup.py` 输出 `NEXT_ACTION=fill_ali_key` 并停下，由你来补。

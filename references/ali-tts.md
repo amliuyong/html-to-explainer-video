@@ -26,7 +26,7 @@ python <skill>/scripts/tts_build.py --project .                # provider 缺省
 
 ## 音色与语速
 
-- 默认 `anmingyuan_v3.1`（安明远，男声）；`lang=en` 的项目默认 `Andy_v3.1`。
+- 默认 `xuyuyuan_v3.1`（许玉远，女声）；`lang=en` 的项目默认 `Andy_v3.1`。
 - 3.1 只认 `*_v3.1` 音色（区分大小写）。`project.json` 里如果留着 edge（`…Neural`）或
   火山（`…_bigtts`）的音色 ID，`tts_build.py` 会提示并回落到默认音色。
 - 内置目录里的 18 个音色 2026-10-19 逐个实测过，都返回字级时间戳（中文按字，英文按词）。

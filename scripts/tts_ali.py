@@ -80,20 +80,20 @@ RETRY_SLEEP = 1.0
 RATE_MIN, RATE_MAX = 0.5, 2.0
 
 # 3.1 只认 *_v3.1 音色（区分大小写）；和 3.0 的音色混用会报 InvalidParameter [411]
-DEFAULT_VOICE = "anmingyuan_v3.1"      # 安明远：男声，清亮自然
+DEFAULT_VOICE = "xuyuyuan_v3.1"        # 许玉远：女声，知性成熟
 DEFAULT_VOICE_EN = "Andy_v3.1"
 
 # 内置常用音色（名称, voice, 说明）。完整 68 个见 ~/ali_tts/docs/qwen-audio-tts-http-api.md §7。
 VOICES: list[tuple[str, str, str]] = [
     # —— 中文男声 ——
-    ("安明远",      "anmingyuan_v3.1",  "男声 · 清亮自然，旁白/有声书（默认）"),
+    ("安明远",      "anmingyuan_v3.1",  "男声 · 清亮自然，旁白/有声书"),
     ("霍拙石",      "huozhuoshi_v3.1",  "男声 · 清亮，有声书/旁白"),
     ("龙三叔",      "longsanshu_v3.1",  "男声 · 沉稳质感，有声书"),
     ("龙安智",      "longanzhi_v3.1",   "男声 · 睿智轻熟"),
     ("龙安朗",      "longanlang_v3.1",  "男声 · 清爽利落"),
     ("许南川",      "xunanchuan_v3.1",  "男声 · 支持方言与多语种"),
     # —— 中文女声 ——
-    ("许玉远",      "xuyuyuan_v3.1",    "女声 · 知性成熟，新闻播报/旁白"),
+    ("许玉远",      "xuyuyuan_v3.1",    "女声 · 知性成熟，新闻播报/旁白（默认）"),
     ("闻怀之",      "wenhuaizhi_v3.1",  "女声 · 稳重成熟，有声书/新闻播报"),
     ("谢舒柔",      "xieshurou_v3.1",   "女声 · 柔和知性，有声书/旁白"),
     ("安小岚",      "anxiaolan_v3.1",   "女声 · 清甜纯净，旁白/新闻播报"),

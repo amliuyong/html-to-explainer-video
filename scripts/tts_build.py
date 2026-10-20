@@ -8,7 +8,7 @@ tts_build.py —— html-to-explainer-video 的配音与时间轴数据源。
 
   ali     默认。阿里云百炼 qwen-audio-3.1-tts-flash，字级时间戳。
           密钥由 scripts/tts_ali.py 从 ~/ali_tts/api_key.csv 读取 —— 本文件从不接触密钥值。
-          音色默认 anmingyuan_v3.1（安明远，男声）；英文项目默认 Andy_v3.1。
+          音色默认 xuyuyuan_v3.1（许玉远，女声）；英文项目默认 Andy_v3.1。
   edge    edge-tts 云端合成，免费、免密钥、有词级边界。
           VOICE 默认 zh-CN-YunxiNeural（云希）。
   volcano 火山引擎（豆包）语音合成 2.0。音质更好，**需要 API Key**。
@@ -45,7 +45,7 @@ html-video-workbuddy-driver 的 tts_edges.py 二次实战），核心五件事�
 
 用法（项目目录内）：
   python tts_build.py --project . [--provider ali|edge|volcano] [--rate +8%]
-                     [--voice anmingyuan_v3.1] [--no-trim]
+                     [--voice xuyuyuan_v3.1] [--no-trim]
 产出：
   audio/<id>.mp3 + audio-manifest.json
 """
