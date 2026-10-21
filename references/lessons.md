@@ -1894,3 +1894,25 @@
     **5) 闸门**：`subs.py` 把 `gap` / `chapter_start` / `chapter_end` 写进 `__SEG__`，帧模板自带「出场过渡」一节；
     `qc_check.py` ⑥ 在每个场景边界比较前后两帧（480 宽灰度平均绝对差）：实测硬切 4–47、带过渡 ≤ 0.25，
     阈值取 2.0，超过即报「场间硬切」（WARN）。
+
+136. **★★（2026-10-21）长片字幕越来越落后于配音：layout 按容器时长排，音轨却 concat 解码后的段 —— 每段差 ~36 ms，片尾累计近 2 s。**
+    用户看 8 分钟成片的原话：「字幕跟不上声音」。片头对得上，越往后声音越早；抽帧 QC 只看画面，
+    时长检查的容差是 0.5 s，都没报。
+
+    **1) 量出来的样子**：拿每段 `audio/<id>.mp3` 的前 2.5 s 和 `narration-full.mp3`（以及成片）做互相关，
+    找它实际出现的秒，减去 `layout.json` 的 `start_sec`：53 段的片子，第 2 段 −0.03 s、第 1/4 处 −0.47 s、
+    一半处 −0.95 s、3/4 处 −1.39 s、倒数第 2 段 −1.84 s —— 线性漂移，每段约 −36 ms。
+
+    **2) 根因**：第 1 条定下「帧时长用 MP3 容器时长」，layout 就按 ffmpeg 打印的 `Duration:` 排；
+    可拼音轨用的是 concat filter，**concat 拼的是解码后的采样**。ffmpeg 解码时会按 LAME 头去掉 priming / padding，
+    解码出来的长度比容器时长短 20–50 ms（平均 36 ms）。画面、硬字幕、SRT/VTT 都按 layout 走，音轨每过一段就早一点。
+
+    **3) 修法**：拼音轨时每段先 `aresample`，再 `apad=whole_len=N` + `atrim=end_sample=N`，
+    `N = round(duration_sec × sr)`；段间静音也按采样数补到下一段的 `round(start_sec × sr)`。每段正好占住它在 layout 里的槽位，
+    误差不随段数累积。**layout 本身不动**（`start_sec` / `duration_sec` / 总帧数逐字相同），所以已出片的项目重跑
+    `timeline_build.py`，只把新音轨换进成片（`ffmpeg -c:v copy`）即可，不用重渲帧。
+
+    **4) 闸门**：拼完解码一遍数采样（不信容器的 `Duration:`），和 layout 总长差超过 1 帧就非零退出；
+    `_total.audio_duration_sec` 改记解码后的真实总长。回归测试 `tests/test_timeline_build.py` 用 12 段合成 beep
+    （段内偏移已知、按 `tts_build` 的命令编码）断言每声 beep 落在 `start_sec + 偏移` ±10 ms 内，并按旧拼法再拼一遍、断言它过不了。
+    **通用规则**：时间轴用哪种时长，拼音轨就得按同一种时长对齐 —— 两个出口用两种口径，误差会逐段累积。

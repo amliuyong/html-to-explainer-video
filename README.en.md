@@ -19,7 +19,7 @@ picture automatically.
 | **Voice-over** | Defaults to **Alibaba Cloud Model Studio `qwen-audio-3.1-tts-flash`** (character-level timestamps, 18 tested voices). Switch to edge-tts (no key needed) or Volcengine TTS 2.0. All three produce the same manifest, so nothing downstream changes |
 | **Subtitles** | Chunked on word/character timestamps, burned in, and exported as SRT / VTT. Spoken expansions ("2026" read as words) are mapped back to the original text, so subtitles do not drift |
 | **Visuals** | HTML + CSS + GSAP at 1920×1080 or portrait; 23 style templates in 8 categories plus a 40+ motion vocabulary; `style_director.py` reads the script and picks a style and motion intensity per scene |
-| **Sync** | Scenes call `B('subtitle chunk')` to get that chunk's start second; scene length is the MP3 container duration, and the last subtitle ends when speech really ends |
+| **Sync** | Scenes call `B('subtitle chunk')` to get that chunk's start second; scene length is the MP3 container duration, the narration track pads every segment to that same length sample-exactly (no drift in long videos), and the last subtitle ends when speech really ends |
 | **Rendering** | Deterministic per-frame seek and screenshot (not screen recording); 1080p / 2K / 4K at 30 / 60 fps; optional shutter motion blur; parallel browser workers; resumable |
 | **QC** | Before rendering: beat-reference check, contract lint, geometry check (overlap / out of frame / subtitle band). After: streams, duration, loudness, contact sheet and **frame continuity** (single-frame jumps, hard cuts between scenes) |
 | **Covers** | 16:9 + 3:4 (plus 9:16 for portrait feeds), each laid out separately and measured after rendering |

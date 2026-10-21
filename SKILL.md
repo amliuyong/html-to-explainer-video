@@ -1,6 +1,6 @@
 ---
 name: html-to-explainer-video
-version: 2.0.8
+version: 2.0.9
 description: 把任意主题做成讲解/科普视频并渲染成 MP4（HTML/CSS/GSAP 画面 + 确定性逐帧渲染 + 配音（默认阿里云百炼，可切 edge-tts / 火山）+ 词级硬字幕）。触发场景：要做科普/讲解/教学/知识/产品类视频、「讲一下 X 做成视频」、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面/9:16 封面、要用 html-video 那种模板化画面但更稳的音画同步、anything2explainer 换 HTML 渲染，或提到 html-to-explainer-video / HTML 讲解视频 / explainer video / MG 视频。内置 23 个模板风格（8 类）与 40+ 动作词汇的动效库，主题驱动模板编排；支持 4K60、快门运动模糊、多进程提速、断点续渲；流程含六个用户确认点（渲染通道是硬闸门）。独立可移植，不依赖 html-video / anything2explainer。
 agent_created: true
 ---
@@ -333,6 +333,7 @@ FAIL 清零才算封面过。退出码 0/1，可直接挂流水线。
 | 机制 | 口径 |
 |---|---|
 | 帧时长 | MP3 **容器时长**（tts_build 裁首尾静音后回填）。词边界时长每段少 ~0.86s，用它必错位 |
+| 拼音轨 | 每段补齐 / 截到 `round(duration_sec × sr)` 个采样、放在 `round(start_sec × sr)`，与 layout 同口径。直接 concat 解码后的段每段早 ~36 ms，长片累计近 2 s；拼完解码量总长，差超过 1 帧即失败（lessons #136） |
 | 末块字幕收尾 | 语音**真实结束**（speech_end_sec）—— 两级时钟，混用则「字幕过了语音还没过」 |
 | 字幕节拍 | 词级时间戳首字对帧号，绝不按字数插值（中文同字数时长差 3 倍）。阿里取 sentence-end 帧的 `sentence.words`（**需显式开 `word_timestamp_enabled`，且时间戳落在展开读法后的文本上 —— `tts_ali.py` 会映射回原文**，否则「2026→二零二六」的「二」误配后文「第二」，字幕整体提前数秒），edge 取 `WordBoundary`，火山取 `sentence.words[]`（**需显式开 `audio_params.enable_subtitle`，本包默认开**；不开会静默退回插值） |
 | 画面节拍 | 场景 HTML 里 `B('块文本')` 取该词起播秒排 GSAP —— 画面与吐字同源 |
@@ -516,7 +517,7 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 | `scripts/tts_ali.py` | **阿里云百炼 qwen-audio-3.1-tts-flash 接口包**（默认引擎）：唯一读 `~/ali_tts/api_key.csv` 的地方；SSE 多行 data 拼接、按 code 判错、时间戳映射回原文；`--check` / `--voices` / `--synth`。密钥不回显、异常脱敏（`_redact`） |
 | `scripts/tts_volcano.py` | **火山引擎语音合成 2.0 接口包**：唯一读 `tts.env` 的地方；`--check` / `--voices` / `--synth`。密钥不回显、异常脱敏（`_redact`） |
 | `scripts/tts_build.py` | 配音合成：阿里云百炼（默认）/ edge-tts / 火山引擎（`--provider`）；缓存/硬超时/退避重试/裁静音，manifest 写两级时长。三引擎 manifest 结构一致 |
-| `scripts/timeline_build.py` | layout.json 全局轴 + narration-full.mp3（gap 显式插入） |
+| `scripts/timeline_build.py` | layout.json 全局轴 + narration-full.mp3（每段按 layout 槽位补齐到采样，gap 显式插入；总长差 > 1 帧即失败） |
 | `scripts/subs.py` | 字幕三出口（subs.json / srt+vtt / 画面内层由渲染器注入）+ beats.js 节拍器 |
 | `scripts/check_beats_refs.py` | **节拍引用构建期校验**：把每帧的 `B()`/`Be()` 全抓出来和自己的 beats 表对一遍。**`B()` 是前缀匹配**（`bt===t ‖ bt.startsWith(t) ‖ t.startsWith(bt)`，归一化不去 `《》「」`），取中间一段会抛错 —— 而那个错**只在渲到那一帧时才炸**（前面几百帧白渲）。本脚本把它提前到构建期：失配打印**该帧可用块列表**，退出码 1，秒级 |
 | `scripts/style_director.py` | ★ **v2.0 主题驱动风格编排**：读 `narration.json` 推断每场角色（开场/陈述/数据/原理/例证/反差/收束/落版），按角色×子类别×时长×内容词打分挑**主风格**，按能量预算给部分场搭**次风格**（局部替换），决定**开场变体**、**场间转场**、**动效强度**，并施加多样性约束（风格数上限/连续同风格上限/开场≠第二场）。产物 `style-plan.json` 的 `why` 字段逐条可解释 |

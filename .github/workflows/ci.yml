@@ -81,6 +81,10 @@ jobs:
       - name: QC continuity regression test
         run: python tests/test_qc_continuity.py
 
+      # --- 拼音轨不漂移：每段占满 layout 槽位，beep ±10 ms（lessons #136；B 段缺 numpy 或 ffmpeg 时自动跳过）---
+      - name: Timeline audio sync regression test
+        run: python tests/test_timeline_build.py
+
       # --- frontmatter description 的长度上限 ---
       # 超长时本地一切正常，只有换到按 1024 字符扫描的加载器才会「整个技能消失」，
       # 且不报错。这类缺陷在本地不可观测，只能在构建期钉住。
