@@ -5,6 +5,41 @@
 
 ---
 
+## [2.1.2] — 2026-10-21
+
+### 修复
+
+- **阿里把字幕切块符 `|` 读出来**（lessons #142）：narration 里的 `|` 只给 `subs.py` 切字幕块用，`tts_build.py` 却原样送给引擎。
+  阿里云百炼有时把它读成「竖线」（紧跟在 、：；后面最容易），或把两个 `|` 夹着的短块读成「绝对值」；同一段文字重配返回
+  逐字节相同的音频，只能改字。一个系列 16 集里 6 集碰上。`tts_build.py` 的注释和 `references/ali-tts.md` 里「服务端当停顿、
+  不会读出来」的说法不成立。
+  - 三个引擎（阿里 / 火山 / edge）送的都是去掉 `|` 的文本。规则在新增的 `subs.strip_chunk_marks`，和 `split_chunks` 放在一起。
+    停顿归标点管（「，|」「：|」的停顿本来就在标点上），所以去掉 `|` 不补停顿：两边是中文、标点或在段首段尾就直接去掉
+    （「判断|这套」照常连读）；两边都是 ASCII 字母或数字时换成一个空格（「Intensive|Applications」不连成一个词，
+    「300|400」不连成一个数）；`|` 旁边本来有空白时收成一个空格。
+  - `narration.json`、manifest 的 `original_text`、`subs.py` 的切块都不变；manifest 的 `spoken_text` 是去掉 `|` 的文本。
+    字级时间戳落在去掉 `|` 的文本上；`subs.py` 拿来对齐的 `tts_text`（各块直接拼起来）同样没有 `|`，每块照旧对到自己首字的时间戳。
+    在一个系列的 812 段上验证过：去掉空白后两份文本逐字相同；带 `|` 的 811 段已交付配音，把时间戳文本里的 `|` 去掉后，
+    每块的起点一个都没变。
+  - `tts_ali.py --synth` / `tts_volcano.py --synth` 同样先去掉 `|`（stderr 打一行实际送出的文本），拿解说词原文试听，
+    结果和正式配音一致。
+  - 实测（阿里 `xuyuyuan_v3.1`，+28%）：首版念了三处「竖线」的那一段（「它也能给所有行套函数、|过滤、分组汇总、|…」）
+    去掉 `|` 重配，faster-whisper 的 zh / auto / en 三种模式都没有「竖线」（旧音频三种模式都有三处），字幕 4 块对到各自的首字。
+
+### 缓存与已有项目
+
+- 缓存签名改用去掉 `|` 的文本。**含 `|` 的段，下次跑 `tts_build.py` 时会重新合成**（这正是要的：旧音频可能念了「竖线」）。
+  这些段的音频、时长、停顿、字级时间戳都会变，接着要重跑 `timeline_build.py` 和 `subs.py`，`B()` 节拍跟着刷新，成片要重审。
+  不含 `|` 的段签名不变，照旧命中缓存。以后只挪 `|` 的位置（送出的文本没变）也不会重配。
+- **已交付的项目不要再跑 `tts_build.py`，除非就是要重配**：几乎每段都带 `|`，一跑就是整片换音频。
+
+### 测试
+
+- 新增 `tests/test_tts_chunk_marks.py` 并接入 CI（不联网）：去 `|` 的规则；真的 `tts_build.synth` / `run()` 配三个假引擎
+  （阿里是假的 SSE 服务端，连数字的展开读法一起造），送出去的文本里没有 `|`、`original_text` 留着；假引擎按去掉 `|` 的文本
+  逐字给时间戳，跑真的 `subs.py`，每块起点正好是首字的时间戳；含 `|` 的段不命中 2.1.1 的旧缓存，不含的照旧命中，只挪 `|`
+  也命中；两个 `--synth` 送的文本和 `tts_build` 一样。旧代码上 15 项失败。
+
 ## [2.1.1] — 2026-10-21
 
 ### 修复
@@ -156,6 +191,7 @@
   场景边界画面整体突变判「场间硬切」WARN（阈值按实片标定：硬切 4–47，带过渡 ≤ 0.25）。`--skip-continuity` 可跳过。
 - 新增回归测试 `tests/test_lint_frames.py`、`tests/test_qc_continuity.py`，并接入 CI。
 
+[2.1.2]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.1.2
 [2.1.1]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.1.1
 [2.1.0]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.1.0
 [2.0.13]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.13

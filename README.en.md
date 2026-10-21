@@ -240,6 +240,7 @@ Full text in [`references/frame-contract.md`](references/frame-contract.md); tem
 python scripts/check_integrity.py          # version, style catalog, template links, secret guard, frontmatter
 python tests/test_subs_text.py
 python tests/test_tts_ali.py               # offline, no key needed
+python tests/test_tts_chunk_marks.py       # the | chunk separator never reaches TTS (all three engines, offline)
 python tests/test_lint_frames.py
 python tests/test_qc_continuity.py         # end-to-end part skips without numpy / ffmpeg
 node   tests/test_beats_norm.mjs

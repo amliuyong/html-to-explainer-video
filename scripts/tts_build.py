@@ -37,6 +37,8 @@ html-video-workbuddy-driver 的 tts_edges.py 二次实战），核心五件事�
   ※ 数字补逗号只在 edge 引擎做：它会改动送进去的文本，从而影响词边界与解说词的
     逐字对齐。火山与阿里都不熔读（阿里实测 4479.55 读作「四千四百七十九点五五」），
     原样送原文（对齐最稳）。
+  ※ 三个引擎送的都是**去掉切块符 `|` 的文本**（subs.strip_chunk_marks）：`|` 只给 subs.py 切字幕块，
+    原样送给阿里会被读成「竖线」（lessons #142）。manifest 的 original_text 仍是带 `|` 的原文。
 
 时长两级口径（manifest 同时写两个，下游各取所需）：
   container_duration_sec  裁完后 MP3 容器时长 → **帧时长用这个**（音画同步）
@@ -66,6 +68,7 @@ import sys
 import edge_tts
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import subs  # noqa: E402  —— 切块符 `|` 怎么切、怎么去，只在 subs.py 定义
 import tts_ali  # noqa: E402
 import tts_volcano  # noqa: E402
 
@@ -282,24 +285,30 @@ async def synth(text, out_path, voice, rate, volume=DEFAULT_VOLUME, pitch=DEFAUL
     """合成一段。provider='edge' 走 edge-tts，'volcano' 走火山引擎，'ali' 走阿里云百炼
     （后两者的密钥由各自的接口包自理）。"""
     os.makedirs(os.path.dirname(os.path.abspath(out_path)) or ".", exist_ok=True)
+    # 切块符 `|` 只给 subs.py 切字幕块，三个引擎都不送：阿里有时把它读成「竖线」，两个 `|` 夹着的短块
+    # 还会读成「绝对值」，同一段文字重配又是逐字节相同的音频（lessons #142）。停顿归标点管，去掉不补停顿。
+    # 时间戳因此落在去掉 `|` 的文本上；subs.py 对的 tts_text 是各块直接拼起来的，同样没有 `|`。
+    plain = subs.strip_chunk_marks(text)
     if provider == "volcano":
-        # 火山不熔读相邻数字 → 原样送原文，词边界与解说词逐字对齐最稳
-        spoken = text
+        # 火山不熔读相邻数字 → 原样送（去掉 `|` 的）原文，词边界与解说词逐字对齐最稳
+        spoken = plain
         timeout = VOLCANO_TIMEOUT if timeout is None else timeout
         retries = VOLCANO_RETRIES if retries is None else retries
     elif provider == "ali":
-        # 阿里同样不熔读；`|` 切块符服务端当停顿处理，不会读出来，也不进时间戳
-        spoken = text
+        # 阿里同样不熔读；展开读法（2026 → 二零二六）由 tts_ali.to_original 映射回送出去的文本
+        spoken = plain
         timeout = ALI_TIMEOUT if timeout is None else timeout
         retries = ALI_RETRIES if retries is None else retries
     else:
-        spoken = sanitize_for_tts(text)
+        spoken = sanitize_for_tts(plain)
         timeout = DEFAULT_TIMEOUT if timeout is None else timeout
         retries = DEFAULT_RETRIES if retries is None else retries
 
     cache_mp3 = cache_js = ""
     if cache_dir:
-        cache_mp3, cache_js = cache_paths(text, voice, rate, volume, pitch, cache_dir,
+        # 签名用去掉 `|` 的文本：含 `|` 的段签名变了，重配一次（2.1.1 的旧音频可能念了「竖线」）；
+        # 不含 `|` 的段签名不变，照旧命中；以后只挪 `|` 的位置，送的文本一样，也不重配。
+        cache_mp3, cache_js = cache_paths(plain, voice, rate, volume, pitch, cache_dir,
                                           trim, provider=provider)
         if os.path.exists(cache_mp3) and os.path.exists(cache_js):
             cached = json.load(open(cache_js, encoding="utf-8"))

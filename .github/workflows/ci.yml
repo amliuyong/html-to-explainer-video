@@ -92,6 +92,11 @@ jobs:
       - name: Even timestamp warning regression test
         run: python tests/test_tts_even_timestamps.py
 
+      # --- 切块符 `|` 不送 TTS：三个引擎送的文本里都没有 `|`，subs 的块照旧对到首字的时间戳，
+      #     含 `|` 的段换缓存签名（lessons #142；假引擎，不联网）---
+      - name: Chunk separator regression test
+        run: python tests/test_tts_chunk_marks.py
+
       - name: Beats matcher regression test
         run: node tests/test_beats_norm.mjs
 

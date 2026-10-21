@@ -91,6 +91,37 @@ def split_chunks(text: str):
     return auto_split(text)
 
 
+# 切块符 `|` 的另一半：送 TTS 之前去掉（lessons #142）。和 split_chunks 放在一起，`|` 怎么用只在这里定义。
+_CHUNK_MARKS = re.compile(r'\s*(?:\|\s*)+')
+_ASCII_ALNUM = re.compile(r'[0-9A-Za-z]')
+
+
+def strip_chunk_marks(text: str) -> str:
+    """送给 TTS 的文本：去掉切块符 `|`。tts_build（三个引擎）与 tts_ali / tts_volcano 的 --synth 都用它。
+
+    `|` 只管屏幕上怎么分块。原样送给阿里，它有时读成「竖线」（紧跟在 、：；后面最容易），
+    两个 `|` 夹着的短块还会读成「绝对值」。停顿归标点管（「，|」「：|」的停顿本来就在标点上），
+    所以去掉 `|` 不补停顿：
+      - 两边是中文、标点，或在段首段尾 → 直接去掉（「判断|这套」照常连读，不再停一下）
+      - 两边都是 ASCII 字母或数字 → 换成一个空格（「Intensive|Applications」不连成一个词，「300|400」不连成一个数）
+      - `|` 旁边本来就有空白 → 收成一个空格
+    没有 `|` 的文本原样返回。服务端的字级时间戳落在去掉 `|` 的文本上；chunk_starts 对的 tts_text
+    是各块直接拼起来的，同样没有 `|`，所以每块照旧对到自己首字的时间戳。
+    """
+    if '|' not in text:
+        return text
+
+    def _join(m):
+        a = text[m.start() - 1] if m.start() > 0 else ''
+        b = text[m.end()] if m.end() < len(text) else ''
+        if not a or not b:
+            return ''
+        spaced = any(ch != '|' for ch in m.group(0))
+        return ' ' if spaced or (_ASCII_ALNUM.match(a) and _ASCII_ALNUM.match(b)) else ''
+
+    return _CHUNK_MARKS.sub(_join, text)
+
+
 def auto_split(text: str, budget=None):
     zh = has_cjk(text)
     budget = budget or (SUB_BUDGET_ZH if zh else SUB_BUDGET_EN)

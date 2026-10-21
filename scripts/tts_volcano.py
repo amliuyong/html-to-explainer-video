@@ -565,7 +565,7 @@ def main() -> int:
     p.add_argument("--env-file", default="", help="显式指定 tts.env 路径")
     p.add_argument("--check", action="store_true", help="连通性自检")
     p.add_argument("--voices", action="store_true", help="列出内置音色")
-    p.add_argument("--synth", default="", help="合成一段文本")
+    p.add_argument("--synth", default="", help="合成一段文本（可直接贴带 | 的解说词，送之前去掉 |）")
     p.add_argument("--out", default="volcano_tts_test.mp3")
     p.add_argument("--voice", default="")
     p.add_argument("--rate", type=int, default=0)
@@ -590,8 +590,14 @@ def main() -> int:
         return 1
 
     if args.synth:
+        # 和 tts_build 送一样的文本（去掉切块符 `|`，lessons #142）：拿解说词原文试听，结果才和正式配音一致
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import subs
+        text = subs.strip_chunk_marks(args.synth)
+        if text != args.synth:
+            print(f"  已去掉切块符 |（和 tts_build 一样），送出：{text}", file=sys.stderr)
         try:
-            r = synthesize(args.synth, voice=resolve_voice_token(args.voice),
+            r = synthesize(text, voice=resolve_voice_token(args.voice),
                            rate=args.rate, project_dir=args.project)
         except (VolcanoTTSError, VolcanoTTSConfigError) as e:
             print(f"✗ {e}", file=sys.stderr)
