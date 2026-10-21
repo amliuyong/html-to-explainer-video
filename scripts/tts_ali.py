@@ -283,7 +283,8 @@ def to_original(words: list[dict], original: str, normalized: str) -> list[list]
 
     做法：difflib 对齐两份文本。equal 段逐字对应；replace 段（数字 ↔ 读法）整段
     归给第一个落进来的词，同段后续的词只延长它的结束时间；delete 段（展开文本多出、
-    原文没有的字）丢弃。原文多出的字（如 `|`）没有时间戳，下游本来就会跳过。
+    原文没有的字）丢弃。原文多出的字没有时间戳，下游本来就会跳过。
+    这里的「原文」是送出去的文本：tts_build 与 --synth 送之前已去掉切块符 `|`（lessons #142）。
     """
     items = [[w.get("text") or "", float(w.get("begin_time") or 0), float(w.get("end_time") or 0)]
              for w in words]
@@ -516,7 +517,7 @@ def main() -> int:
     p.add_argument("--key-file", default="", help="密钥文件（默认 ~/ali_tts/api_key.csv）")
     p.add_argument("--check", action="store_true", help="连通性自检")
     p.add_argument("--voices", action="store_true", help="列出内置音色")
-    p.add_argument("--synth", default="", help="合成一段文本")
+    p.add_argument("--synth", default="", help="合成一段文本（可直接贴带 | 的解说词，送之前去掉 |）")
     p.add_argument("--out", default="ali_tts_test.mp3")
     p.add_argument("--voice", default="")
     p.add_argument("--rate", default="", help="快百分之几：+8%% / 8 / -10")
@@ -544,8 +545,13 @@ def main() -> int:
         return 1
 
     if args.synth:
+        # 和 tts_build 送一样的文本（去掉切块符 `|`，lessons #142）：拿解说词原文试听，结果才和正式配音一致
+        import subs
+        text = subs.strip_chunk_marks(args.synth)
+        if text != args.synth:
+            print(f"  已去掉切块符 |（和 tts_build 一样），送出：{text}", file=sys.stderr)
         try:
-            r = synthesize(args.synth, voice=args.voice, rate=args.rate, language=args.lang)
+            r = synthesize(text, voice=args.voice, rate=args.rate, language=args.lang)
         except (AliTTSError, AliTTSConfigError) as e:
             print(f"✗ {e}", file=sys.stderr)
             return 1

@@ -19,7 +19,7 @@ timeline / subs / 渲染器零改动。
 ```bash
 python <skill>/scripts/tts_ali.py --check                      # 连通性自检（真合成一句）
 python <skill>/scripts/tts_ali.py --voices                     # 内置常用音色
-python <skill>/scripts/tts_ali.py --synth "一句话" --out a.mp3 --voice 许玉远 --rate +8%
+python <skill>/scripts/tts_ali.py --synth "一句话" --out a.mp3 --voice 许玉远 --rate +8%   # 可直接贴带 | 的解说词：和 tts_build 一样先去掉 |
 python <skill>/scripts/tts_setup.py --project . --provider ali --voice 许玉远   # 写进 project.json
 python <skill>/scripts/tts_build.py --project .                # provider 缺省 = ali
 ```
@@ -42,7 +42,7 @@ python <skill>/scripts/tts_build.py --project .                # provider 缺省
 | 多句文本的 `begin_time` 是**整段音频的绝对时间**（第 2 句从 21.92s 接着往后排） | 直接拼，不逐句平移 |
 | 字级时间戳落在**展开读法后的文本**上：「2026」→「二零二六」、「2.4%」→「百分之二点四」、英文「2026」→「twenty twenty six」；同一会话里也会有保留原数字的时候 | `tts_ali.to_original()` 用 difflib 把每项映射回原文，展开段合并成一项。**不映射的后果**：`subs.py` 把「二」误配到后文「第二」上，后面几块字幕整体提前 4–7 秒，而且不报错 |
 | 标点并进相邻字（「，同」「段。」） | `subs.py` 对齐前会剥掉标点，不用管 |
-| narration 里的 `\|` 切块符不会读出来，服务端当成停顿，也不进时间戳 | 原样送原文 |
+| narration 里的 `\|` 切块符原样送过去，**有时会读出来**：读成「竖线」（紧跟在 、：；后面最容易），两个 `\|` 夹着的短块读成「绝对值」；同一段文字重配是逐字节相同的音频（2026-10-21：一个系列 16 集里 6 集碰上） | 2.1.2 起 `tts_build.py` 和 `tts_ali.py --synth` 送之前去掉 `\|`（lessons #142），不补停顿 —— 停顿归标点管；两边都是 ASCII 字母或数字时换成一个空格。字级时间戳落在去掉 `\|` 的文本上，`subs.py` 照旧按 `\|` 切块、对到各块首字 |
 | 某些写法只返回**插值的**字级时间戳：offset 不在 1/32 秒网格上（真的都在），整段或从某个字起到段尾（2026-10-21：13 集 673 段里 19 段，不算片头；片头那一句 8 集都是插值的；同一段文字重配，返回逐字节相同的音频） | `tts_build.py` 打 ⚠ 并在 manifest 记 `even_timestamps`（lessons #140）。改写这一段（换个说法、调语序、拆句）再重配；不改的话这一段的字幕和 `B()` 节拍对不上吐字 |
 | 数字不熔读：`4479.55` 读作「四千四百七十九点五五」 | 不需要 edge 那套「数字间补逗号」 |
 | 业务空间域名一个 SSE 事件拆成多行 `data:`；出错时是 HTTP 400 + `event:result` | 按规范拼接；判错只认 `code`（dashscope SDK 1.27.7 的流式栽在这里，所以只用标准库） |
@@ -58,4 +58,4 @@ python <skill>/scripts/tts_build.py --project .                # provider 缺省
 | `Throttling…` | 超过 180 RPM，自动退避重试 |
 | `找不到阿里云百炼密钥文件` | `tts_setup.py` 会输出 `NEXT_ACTION=fill_ali_key` 并停下，让用户补文件或设 `ALI_TTS_KEY_FILE` |
 
-回归测试：`python tests/test_tts_ali.py`、`python tests/test_tts_even_timestamps.py`（不联网、不需要密钥）。
+回归测试：`python tests/test_tts_ali.py`、`python tests/test_tts_even_timestamps.py`、`python tests/test_tts_chunk_marks.py`（不联网、不需要密钥）。

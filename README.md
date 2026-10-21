@@ -231,6 +231,7 @@ node scripts/render_video.mjs . --list-profiles      # 看全部档位
 python scripts/check_integrity.py          # 仓库自洽：版本号、风格目录、模板外链、密钥防线、frontmatter
 python tests/test_subs_text.py             # 字幕文本规则
 python tests/test_tts_ali.py               # 阿里 TTS（不联网、不需要密钥）
+python tests/test_tts_chunk_marks.py       # 切块符 | 不送 TTS（三个引擎，不联网）
 python tests/test_lint_frames.py           # lint：搭建期读布局
 python tests/test_qc_continuity.py         # 逐帧连续性（缺 numpy / ffmpeg 时跳过端到端段）
 node   tests/test_beats_norm.mjs           # 节拍匹配
