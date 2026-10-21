@@ -113,7 +113,8 @@ jobs:
       - name: QC continuity regression test
         run: python tests/test_qc_continuity.py
 
-      # --- 拼音轨不漂移：每段占满 layout 槽位，beep ±10 ms（lessons #136；B 段缺 numpy 或 ffmpeg 时自动跳过）---
+      # --- 拼音轨不漂移：每段占满 layout 槽位，beep ±10 ms（lessons #136）；末帧不是缓冲不够 libmp3lame 的半截帧
+      #     （lessons #141）。B、C 段缺 numpy 或 ffmpeg 时自动跳过 ---
       - name: Timeline audio sync regression test
         run: python tests/test_timeline_build.py
 

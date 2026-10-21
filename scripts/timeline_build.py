@@ -11,6 +11,7 @@ timeline_build.py —— 全局时间轴：layout.json + 拼接音轨。
      段间静音也按采样数补到下一段的 round(start_sec × sr)。
      ★ 不能直接 concat 解码后的段：解码出来的采样比容器时长平均短约 36 ms（MP3 的
        priming / padding），50 段累计近 2 s —— 音轨越往后越早于画面和字幕（lessons #136）。
+     concat 之后先切成每帧正好 1152 个采样再交给 libmp3lame（lessons #141，见 concat_cmd）。
   拼完解码一遍量总长，和 layout 总长差超过 1 帧就非零退出。
 
 用法：
@@ -37,6 +38,7 @@ def ffmpeg_exe() -> str:
 
 
 SR = 44100  # narration-full 的采样率
+MP3_FRAME = 1152  # libmp3lame 在 32 / 44.1 / 48 kHz（MPEG-1 Layer III）每帧的采样数
 
 
 def slot_samples(layout: dict, order: list, sr: int = SR) -> list:
@@ -56,6 +58,34 @@ def slot_samples(layout: dict, order: list, sr: int = SR) -> list:
         else:
             slots.append((n, 0))
     return slots
+
+
+def concat_cmd(ff: str, parts: list, slots: list, out: str) -> list:
+    """拼 narration-full.mp3 的 ffmpeg 命令：每段补齐/截到槽位的采样数，静音按采样数补，再 concat。
+
+    concat 之后用 asetnsamples 切成每帧正好 MP3_FRAME 个采样，再交给 libmp3lame。p=0：最后一帧不补静音，
+    采样一个不多、一个不少。
+    ★ 不切的话，ffmpeg（6.1 起）替编码器按 1152 切帧：一帧的前一部分拷走，剩下的尾巴不拷贝，只挪数据指针，
+      linesize 跟着减小。最后一帧要是这样一截尾巴（末段补的静音帧），缓冲会比 libmp3lame 要的
+      FFALIGN(nb_samples, 8) 个采样少 4 个，它就报 `inadequate AVFrame plane padding` 退出（lessons #141）。
+      只有 av_cpu_max_align() 是 16 字节的机器（aarch64 / Apple Silicon、只有 SSE 的 x86）会碰上；
+      碰不碰上取决于总采样数和末段补了多少静音，一集约 1/64。
+    """
+    inputs = []
+    for p in parts:
+        inputs += ["-i", p]
+    filters, labels = [], []
+    for i, (n_seg, n_gap) in enumerate(slots):
+        filters.append(f"[{i}:a]aresample={SR},apad=whole_len={n_seg},atrim=end_sample={n_seg}[a{i}]")
+        labels.append(f"[a{i}]")
+        if n_gap > 0:
+            filters.append(f"anullsrc=channel_layout=mono:sample_rate={SR},atrim=end_sample={n_gap}[g{i}]")
+            labels.append(f"[g{i}]")
+    fc = (";".join(filters) + ";" + "".join(labels)
+          + f"concat=n={len(labels)}:v=0:a=1,asetnsamples=n={MP3_FRAME}:p=0[out]")
+    return [ff, "-hide_banner", "-loglevel", "error", "-y",
+            *inputs, "-filter_complex", fc, "-map", "[out]",
+            "-c:a", "libmp3lame", "-b:a", "128k", out]
 
 
 def decoded_seconds(path: str, ff: str, sr: int = SR) -> float:
@@ -121,23 +151,9 @@ def main() -> int:
     total = cursor - (gap if order else 0.0)
 
     # ---- 拼音轨：每段补齐/截到槽位的采样数，静音按采样数补，再 concat ----
-    inputs = []
-    for p in parts:
-        inputs += ["-i", p]
-    filters, labels = [], []
-    for i, (n_seg, n_gap) in enumerate(slot_samples(layout, order)):
-        filters.append(f"[{i}:a]aresample={SR},apad=whole_len={n_seg},atrim=end_sample={n_seg}[a{i}]")
-        labels.append(f"[a{i}]")
-        if n_gap > 0:
-            filters.append(f"anullsrc=channel_layout=mono:sample_rate={SR},atrim=end_sample={n_gap}[g{i}]")
-            labels.append(f"[g{i}]")
-    fc = ";".join(filters) + ";" + "".join(labels) + f"concat=n={len(labels)}:v=0:a=1[out]"
-
     out = os.path.join(proj, "audio", "narration-full.mp3")
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    cmd = [ff, "-hide_banner", "-loglevel", "error", "-y",
-           *inputs, "-filter_complex", fc, "-map", "[out]",
-           "-c:a", "libmp3lame", "-b:a", "128k", out]
+    cmd = concat_cmd(ff, parts, slot_samples(layout, order), out)
     r = subprocess.run(cmd, capture_output=True, text=True, errors="replace")
     if r.returncode != 0:
         print("✗ ffmpeg 拼接失败:\n" + (r.stderr or "")[-800:], file=sys.stderr)
