@@ -5,6 +5,20 @@
 
 ---
 
+## [2.0.12] — 2026-10-21
+
+### 安全
+
+按 ASH 3.5.4 扫描结果（容器模式，bandit / checkov / semgrep / opengrep / detect-secrets 等全部运行）修复：
+
+- **`dashScope` 写成 `http://` 时 API Key 明文外泄**（bandit B310）：`tts_ali.py` 读密钥文件时要求 `dashScope` 以 `https://` 开头，
+  否则报配置错误、不发请求（Bearer 密钥随每次请求发出；`file://` 等协议也不再交给 `urlopen`）。已有的 https 配置不受影响。
+  `tests/test_tts_ali.py` 新增用例：https 正常读取，http / file / 无协议均被拒绝（旧代码上 3 项失败）。
+- **CI 的 `GITHUB_TOKEN` 拿仓库默认权限**（checkov CKV2_GHA_1）：`ci.yml` 顶层声明 `permissions: contents: read`。
+- **CI 引用可变 tag**（semgrep / opengrep mutable-action-tag）：`actions/checkout`、`setup-python`、`setup-node` 钉到 commit SHA，注释里标版本号。
+- SHA1 只用于确定性选取与缓存文件名（bandit B324）：`style_director.py`、`tts_build.py` 加 `usedforsecurity=False`，哈希值不变，已有缓存照常命中。
+- `tts_ali.py` 错误码提示表里的 `InvalidApiKey` 被 detect-secrets 误报为密钥：加 `pragma: allowlist secret`。
+
 ## [2.0.11] — 2026-10-21
 
 ### 修复
@@ -86,6 +100,7 @@
   场景边界画面整体突变判「场间硬切」WARN（阈值按实片标定：硬切 4–47，带过渡 ≤ 0.25）。`--skip-continuity` 可跳过。
 - 新增回归测试 `tests/test_lint_frames.py`、`tests/test_qc_continuity.py`，并接入 CI。
 
+[2.0.12]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.12
 [2.0.11]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.11
 [2.0.10]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.10
 [2.0.9]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.9

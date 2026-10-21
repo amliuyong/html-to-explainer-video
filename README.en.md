@@ -88,7 +88,7 @@ Start a new session afterwards so the agent rescans its skills.
 
    ```csv
    apiKey,<your API key>
-   dashScope,<base URL of your workspace endpoint>
+   dashScope,<base URL of your workspace endpoint, starting with https://>
    ```
 
 3. Check the connection and pick a voice:

@@ -82,7 +82,7 @@ bash ~/.claude/skills/html-to-explainer-video/setup_env.sh --install   # 自检 
 
    ```csv
    apiKey,<你的 API Key>
-   dashScope,<业务空间专属域名的 base URL>
+   dashScope,<业务空间专属域名的 base URL，https:// 开头>
    ```
 
 3. 自检与选音色：

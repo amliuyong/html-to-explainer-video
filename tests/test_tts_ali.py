@@ -2,13 +2,14 @@
 # -*- coding: utf-8 -*-
 """阿里云百炼 TTS 接口包的回归测试（零依赖、不联网、不需要密钥：python tests/test_tts_ali.py）。
 
-守三条不变式：
+守四条不变式：
 
   1. SSE 解析：业务空间域名把一个事件拆成多行 data:，必须拼接后再解析；
      判错只认 data 里的 code（出错时是 HTTP 400 + event:result，流末尾没有空行）。
   2. 时间戳映射回原文：服务端把「2026」展开成「二零二六」再给时间戳，
      不映射回原文，subs.py 会把「二」误配到后文「第二」上，字幕整体提前好几秒。
   3. 语速换算：「快百分之几」→ 倍速 [0.5, 2.0]。
+  4. 密钥文件：dashScope 必须是 https://（Bearer 密钥随每次请求发出，http 会明文外泄）。
 
 用例里的帧结构与字级时间戳取自 2026-10-19 的真实响应（音频与 ID 已替换）。
 失败即以非零码退出（CI 直接吃退出码）。
@@ -21,6 +22,7 @@ import io
 import json
 import os
 import sys
+import tempfile
 import urllib.error
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -186,6 +188,33 @@ print("脱敏 _redact")
 fake = "sk-" + "a1B2" * 10
 check("sk- 形态被抹掉", fake in tts_ali._redact(f"boom {fake} boom"), False)
 check("request_id 不被误抹", "r-1234567890abcdef" in tts_ali._redact("r-1234567890abcdef"), True)
+
+print("密钥文件 load_credentials")
+
+
+def creds_with(base_url: str):
+    """临时密钥文件里写入给定的 dashScope，返回 load_credentials 的结果或它报的错。"""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "api_key.csv")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(f"apiKey,{fake}\ndashScope,{base_url}\n")
+        os.environ["ALI_TTS_KEY_FILE"] = path
+        try:
+            return tts_ali.load_credentials()
+        except tts_ali.AliTTSConfigError as e:
+            return e
+        finally:
+            del os.environ["ALI_TTS_KEY_FILE"]
+
+
+ok = creds_with("https://llm-abc.cn-beijing.maas.aliyuncs.com/api/v1/")
+check("https 读出 base_url（去掉末尾 /）",
+      ok["base_url"] if isinstance(ok, dict) else ok, "https://llm-abc.cn-beijing.maas.aliyuncs.com/api/v1")
+check("大写 HTTPS 也接受", isinstance(creds_with("HTTPS://llm-abc.example.com/api/v1"), dict), True)
+for bad in ("http://llm-abc.cn-beijing.maas.aliyuncs.com/api/v1", "file:///etc/passwd", "llm-abc.example.com/api/v1"):
+    err = creds_with(bad)
+    check(f"拒绝 {bad.split(':')[0] if ':' in bad else '无协议'}",
+          isinstance(err, tts_ali.AliTTSConfigError) and "https://" in str(err), True)
 
 if fails:
     print(f"\n失败 {len(fails)} 项：\n")

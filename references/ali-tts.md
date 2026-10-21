@@ -10,7 +10,7 @@ timeline / subs / 渲染器零改动。
 ## 密钥
 
 - 文件：`~/ali_tts/api_key.csv`，两列「字段名,值」，权限 0400。环境变量 `ALI_TTS_KEY_FILE` 可指向别处。
-- 只用两个字段：`apiKey`（Bearer 鉴权）和 `dashScope`（业务空间专属域名的 base URL）。
+- 只用两个字段：`apiKey`（Bearer 鉴权）和 `dashScope`（业务空间专属域名的 base URL，必须是 `https://`，否则 `tts_ali.py` 拒绝读取）。
 - **agent 不读、不打印这个文件。** 只有 `tts_ali.py` 读它；状态用 `tts_setup.py --status`
   或 `tts_ali.py --check` 看（密钥和业务空间 ID 都已脱敏）。
 

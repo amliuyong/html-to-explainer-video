@@ -184,6 +184,9 @@ def load_credentials() -> dict[str, str]:
     missing = [n for n, v in (("apiKey", api_key), ("dashScope", base_url)) if not v]
     if missing:
         raise AliTTSConfigError(f"{path} 缺字段：{', '.join(missing)}（两列「字段名,值」）")
+    # Bearer 密钥随每次请求发出：http:// 会明文外泄，file:// 等别的协议也不该交给 urlopen
+    if not base_url.lower().startswith("https://"):
+        raise AliTTSConfigError(f"{path} 的 dashScope 必须是 https:// 开头的 base URL")
     return {"path": path, "api_key": api_key, "base_url": base_url}
 
 
@@ -246,7 +249,7 @@ def _iter_events(lines):
 
 
 _HINTS = {
-    "InvalidApiKey": "核对密钥文件里的 apiKey；Key 与 dashScope 域名必须是同一地域",
+    "InvalidApiKey": "核对密钥文件里的 apiKey；Key 与 dashScope 域名必须是同一地域",  # pragma: allowlist secret（错误码，不是密钥）
     "DataInspectionFailed": "内容安全拦截：改写这句解说词再试",
     "Arrearage": "账号欠费：到百炼控制台充值",
     "AllocationQuota.FreeTierOnly": "免费额度已用完且开启了「用完即停」",
@@ -410,7 +413,7 @@ def _one_request(text: str, voice: str, cred: dict[str, str], rate: float,
                  "Content-Type": "application/json",
                  "X-DashScope-SSE": "enable"})
     try:
-        resp = urllib.request.urlopen(req, timeout=timeout)
+        resp = urllib.request.urlopen(req, timeout=timeout)  # nosec B310 - base_url 已在 load_credentials 限定为 https://
     except urllib.error.HTTPError as e:      # 必须在 URLError 之前（它是子类）
         raise _http_error(e) from None
     except urllib.error.URLError as e:
