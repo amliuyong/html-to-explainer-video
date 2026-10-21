@@ -45,6 +45,16 @@ jobs:
         with:
           node-version: "22"
 
+      # --- 渲染类回归测试的依赖：node/ 下的 playwright-core（按 lock 装），以及 numpy / pillow / imageio-ffmpeg ---
+      # 缺 playwright-core 不在 seek history 测试的 SKIP 条件里，会直接失败；
+      # 缺 numpy / PIL / ffmpeg 时快门、peek、qc 连续性、拼音轨的 B 段都静默跳过，CI 全绿却什么都没测。
+      - name: Install render dependencies
+        shell: bash
+        run: |
+          set -e
+          npm ci --prefix node --no-audit --no-fund
+          python -m pip install numpy pillow imageio-ffmpeg
+
       # --- 仓库自洽性：版本号漂移、风格目录漂移、残留外链 ---
       - name: Repository integrity check
         run: python scripts/check_integrity.py
