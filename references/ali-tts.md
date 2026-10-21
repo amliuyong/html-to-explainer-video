@@ -43,6 +43,7 @@ python <skill>/scripts/tts_build.py --project .                # provider 缺省
 | 字级时间戳落在**展开读法后的文本**上：「2026」→「二零二六」、「2.4%」→「百分之二点四」、英文「2026」→「twenty twenty six」；同一会话里也会有保留原数字的时候 | `tts_ali.to_original()` 用 difflib 把每项映射回原文，展开段合并成一项。**不映射的后果**：`subs.py` 把「二」误配到后文「第二」上，后面几块字幕整体提前 4–7 秒，而且不报错 |
 | 标点并进相邻字（「，同」「段。」） | `subs.py` 对齐前会剥掉标点，不用管 |
 | narration 里的 `\|` 切块符不会读出来，服务端当成停顿，也不进时间戳 | 原样送原文 |
+| 某些写法只返回**均分的**字级时间戳：整段每个字一样长，或段尾一串字步长相同（2026-10-21，13 集里 10 段；同一段文字重配，返回逐字节相同的音频） | `tts_build.py` 打 ⚠ 并在 manifest 记 `even_timestamps`（lessons #140）。改写这一段（换个说法、调语序、拆句）再重配；不改的话这一段的字幕和 `B()` 节拍对不上吐字 |
 | 数字不熔读：`4479.55` 读作「四千四百七十九点五五」 | 不需要 edge 那套「数字间补逗号」 |
 | 业务空间域名一个 SSE 事件拆成多行 `data:`；出错时是 HTTP 400 + `event:result` | 按规范拼接；判错只认 `code`（dashscope SDK 1.27.7 的流式栽在这里，所以只用标准库） |
 | 首字节约 1 秒，一句 7 秒的音频整个请求约 2 秒 | — |
@@ -57,4 +58,4 @@ python <skill>/scripts/tts_build.py --project .                # provider 缺省
 | `Throttling…` | 超过 180 RPM，自动退避重试 |
 | `找不到阿里云百炼密钥文件` | `tts_setup.py` 会输出 `NEXT_ACTION=fill_ali_key` 并停下，让用户补文件或设 `ALI_TTS_KEY_FILE` |
 
-回归测试：`python tests/test_tts_ali.py`（不联网、不需要密钥）。
+回归测试：`python tests/test_tts_ali.py`、`python tests/test_tts_even_timestamps.py`（不联网、不需要密钥）。

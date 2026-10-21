@@ -42,6 +42,8 @@ html-video-workbuddy-driver 的 tts_edges.py 二次实战），核心五件事�
   container_duration_sec  裁完后 MP3 容器时长 → **帧时长用这个**（音画同步）
   speech_end_sec          词边界末尾（裁后坐标系）→ **末块字幕收尾用这个**
   duration_sec            词边界末尾（原始坐标系）→ 仅排查用
+  even_timestamps         "whole" / "tail" / null：字级时间戳是不是均分的（整段每字一样长 / 段尾步长相同，
+                          lessons #140）；被标出来的段打 ⚠，建议改写那一段再重配
 
 用法（项目目录内）：
   python tts_build.py --project . [--provider ali|edge|volcano] [--rate +8%]
@@ -88,6 +90,13 @@ TRIM_HEAD_BACKOFF = 0.03
 TRIM_TAIL_KEEP = 0.12
 TRIM_THRESHOLD = 0.004
 
+# 字级时间戳均分（lessons #140）：阿里对某些写法不给真的时间戳，把一段（或段尾一串字）的时长平均分给每个字。
+# 真的时间戳落在 1/16 秒网格上、每字长短不一。音频没问题，只是字幕和 B() 节拍对不上吐字，下游不报错。
+EVEN_MIN_CHARS = 6        # 不到 6 个字不判：均分和真的分不开
+EVEN_WHOLE_SPREAD = 0.02  # 整段：各字时长 max − min 小于它（秒）
+EVEN_TAIL_STEPS = 8       # 段尾：至少这么多个相等的 offset 步长
+EVEN_STEP_TOL = 0.0015    # 两个步长相差小于它（秒）就算相等
+
 _NUMERIC_RUN = re.compile(r"[0-9]+(?:\.[0-9]+)?")
 
 
@@ -109,6 +118,38 @@ def sanitize_for_tts(text: str) -> str:
         out.append(val)
         prev_kind = kind
     return "".join(out)
+
+
+def _even_tail(chars: list[dict]) -> int:
+    """段尾有几个相等的 offset 步长（相邻两字的起点差按毫秒取整后比）。"""
+    offs = [float(b["offset_sec"]) for b in chars]
+    steps = [round(offs[i + 1] - offs[i], 3) for i in range(len(offs) - 1)]
+    run = 1 if steps else 0
+    for i in range(len(steps) - 1, 0, -1):
+        if abs(steps[i] - steps[i - 1]) >= EVEN_STEP_TOL:
+            break
+        run += 1
+    return run
+
+
+def even_timestamps(bounds: list[dict]) -> str | None:
+    """字级时间戳是不是均分的："whole"（整段）、"tail"（段尾一串字）或 None（正常，或不到 6 个字不判）。"""
+    chars = [b for b in bounds if str(b.get("text", "")).strip()]
+    if len(chars) < EVEN_MIN_CHARS:
+        return None
+    durs = [round(float(b["duration_sec"]), 3) for b in chars]
+    if max(durs) - min(durs) < EVEN_WHOLE_SPREAD:
+        return "whole"
+    return "tail" if _even_tail(chars) >= EVEN_TAIL_STEPS else None
+
+
+def even_warning(key: str, kind: str, bounds: list[dict]) -> str:
+    """被标出来的段打的那一行提醒。"""
+    chars = [b for b in bounds if str(b.get("text", "")).strip()]
+    where = (f"整段 {len(chars)} 个字一样长" if kind == "whole"
+             else f"后 {_even_tail(chars) + 1}/{len(chars)} 个字步长相同")
+    return (f"  ⚠ [{key}] 字级时间戳是均分的（{where}）：服务端没给真的时间戳，字幕和 B() 节拍会对不上吐字。"
+            f"建议改写这一段（换个说法、调语序、拆句）再重配")
 
 
 def _boundary_kwarg() -> str:
@@ -409,10 +450,13 @@ async def run(args) -> int:
                 return 1
             raise
         r["id"] = key
+        r["even_timestamps"] = even_timestamps(r["boundaries"])
         results.append(r)
         print(f"  [{key}] {r['bytes']:>8}B  容器 {r['container_duration_sec']:>7.3f}s  "
               f"语音止 {r['speech_end_sec']:>6.3f}s  首裁 {r['lead_cut_sec']:.3f}s  "
               f"bounds={r['boundary_count']}", file=sys.stderr)
+        if r["even_timestamps"]:
+            print(even_warning(key, r["even_timestamps"], r["boundaries"]), file=sys.stderr)
 
     manifest = {
         "provider": provider, "voice": voice, "rate": rate,
@@ -429,6 +473,10 @@ async def run(args) -> int:
     print(f"[tts] {len(results)} 段 → audio/ + {mp}")
     total = sum(r["container_duration_sec"] for r in results)
     print(f"[tts] 容器合计 {total:.2f}s（未含段间 gap；timeline_build.py 会加）")
+    even = [r["id"] for r in results if r["even_timestamps"]]
+    if even:
+        print(f"[tts] ⚠ {len(even)} 段的字级时间戳是均分的：{'、'.join(even)}（见上；manifest 的 even_timestamps）",
+              file=sys.stderr)
     return 0
 
 

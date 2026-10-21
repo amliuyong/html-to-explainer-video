@@ -5,6 +5,20 @@
 
 ---
 
+## [2.1.0] — 2026-10-21
+
+### 新增
+
+- **字级时间戳均分时提醒**（lessons #140）：阿里云百炼对某些写法不给真的字级时间戳，而是把一段、或段尾一串字的时长
+  平均分给每个字。音频正常，`subs.py` 照样切块、`B()` 照样能定位，只是字幕和画面节拍跟着均分的时刻走，对不上吐字，
+  以前没有任何地方报。实例：一集 51 段里有一段整段均分（32 个字每字 0.232–0.233 s），另一集一段后 31 / 38 个字步长都是 0.196 s。
+  - `tts_build.py` 每合成（或从缓存取出）一段就判一次：每个字的时长 `max − min < 0.02 s`（至少 6 个字）算**整段**均分，
+    段尾 ≥ 8 个相邻字的 offset 步长相等（容差 1.5 ms）算**段尾**均分。被标出来的段在 stderr 打一行 ⚠（段 id、哪一种、
+    建议改写这一段再重配），全部合成完再汇总一行。只是提醒，退出码不变。
+  - `audio-manifest.json` 每段新增字段 `"even_timestamps": "whole" | "tail" | null`（所以升次版本号）。下游脚本不读它，行为不变。
+  - 同一段文字重配时服务端返回逐字节相同的音频，要换一条就得改字：换个说法、调语序、拆句（改成句号分开、把开头的词挪后）。
+  - 新增回归测试 `tests/test_tts_even_timestamps.py`（真实配音的 offset / 时长样本；把 `synth` 换成假的跑真的 `run()`，不联网），并接入 CI。
+
 ## [2.0.13] — 2026-10-21
 
 ### 修复
@@ -117,6 +131,7 @@
   场景边界画面整体突变判「场间硬切」WARN（阈值按实片标定：硬切 4–47，带过渡 ≤ 0.25）。`--skip-continuity` 可跳过。
 - 新增回归测试 `tests/test_lint_frames.py`、`tests/test_qc_continuity.py`，并接入 CI。
 
+[2.1.0]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.1.0
 [2.0.13]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.13
 [2.0.12]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.12
 [2.0.11]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.11
