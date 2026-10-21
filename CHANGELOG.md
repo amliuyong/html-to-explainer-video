@@ -5,6 +5,23 @@
 
 ---
 
+## [2.0.13] — 2026-10-21
+
+### 修复
+
+- **只装了 Chrome / Edge 的机器上渲染起不来**（lessons #139）：`render_video.mjs` 按 `--browser → BROWSER_PATH → Chrome → Edge`
+  解析出浏览器、打了一行「浏览器：…」日志，却没有把它作为 `executablePath` 传给 `chromium.launch`，playwright 只认自带的 chromium，
+  没下载过就报 `Executable doesn't exist`。`--browser` 与 `BROWSER_PATH` 也一直无效。自 2.0.8 起如此；`peek_frame` / `check_layout` /
+  `cover_build` / `check_cover` 一直是对的，所以预览、体检、封面都正常，只有出片失败。现在与这四个工具一致。
+
+### CI
+
+- **渲染类回归测试在 CI 上从没真正跑过**：CI 不装 `node/` 的 `playwright-core`（seek history 直接失败），也不装 numpy / pillow / ffmpeg
+  （快门、peek、qc 连续性、拼音轨的端到端段静默 SKIP，CI 照样全绿）。
+  - 新增 `Install render dependencies`：`npm ci --prefix node`，pip 装 numpy / pillow / imageio-ffmpeg，并把 imageio-ffmpeg 的静态二进制以 `ffmpeg` 为名放上 PATH。
+    浏览器用 runner 自带的 Chrome / Edge（依赖上面的修复）。
+  - CI 设 `HX_NO_SKIP=1`：`test_seek_history.mjs`、`test_qc_continuity.py`、`test_timeline_build.py` 缺依赖时判失败而不是 SKIP。不设时本地行为不变。
+
 ## [2.0.12] — 2026-10-21
 
 ### 安全
@@ -100,6 +117,7 @@
   场景边界画面整体突变判「场间硬切」WARN（阈值按实片标定：硬切 4–47，带过渡 ≤ 0.25）。`--skip-continuity` 可跳过。
 - 新增回归测试 `tests/test_lint_frames.py`、`tests/test_qc_continuity.py`，并接入 CI。
 
+[2.0.13]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.13
 [2.0.12]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.12
 [2.0.11]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.11
 [2.0.10]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.10

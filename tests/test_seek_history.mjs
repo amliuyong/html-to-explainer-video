@@ -11,6 +11,7 @@
  * peek_frame 也要与成片一致：有 Python + PIL 时，抽一帧与顺序渲染的同一帧逐像素比较。
  *
  * 找不到浏览器 / ffmpeg 时打印 SKIP 并以 0 退出；不一致即 process.exit(1)。
+ * 设了 HX_NO_SKIP=1（CI）时不许跳过：缺浏览器、ffmpeg、PIL、numpy 都算失败。
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -20,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const FPS = 30, DUR = 2.0;
+const NO_SKIP = process.env.HX_NO_SKIP === '1';
 
 const FRAME = `<!DOCTYPE html>
 <html><head><meta charset="utf-8">
@@ -59,7 +61,7 @@ function render(dir, extra) {
     '--png-fast', '--keep-frames', ...extra], { encoding: 'utf8' });
   const out = (r.stdout || '') + (r.stderr || '');
   if (r.status !== 0) {
-    if (/浏览器|browser|chrom|ffmpeg/i.test(out) && !/✓ 成片/.test(out)) {
+    if (!NO_SKIP && /浏览器|browser|chrom|ffmpeg/i.test(out) && !/✓ 成片/.test(out)) {
       console.log('SKIP: 渲染器起不来（缺浏览器或 ffmpeg）\n' + out.split('\n').slice(-4).join('\n'));
       process.exit(0);
     }
@@ -102,6 +104,8 @@ try {
     const max = parseInt(cmp.stdout, 10);
     if (!(max <= 2)) failures.push(`peek_frame --at-sec 1.2 与成片第 36 帧不同（最大差 ${cmp.stdout.trim() || cmp.stderr.trim()}）`);
     else console.log(`✓ peek_frame --at-sec 1.2 与成片第 36 帧一致（最大差 ${max}）`);
+  } else if (NO_SKIP) {
+    failures.push('没有 PIL / numpy，而 HX_NO_SKIP=1 不许跳过 peek_frame 对照');
   } else {
     console.log('SKIP: 没有 PIL / numpy，跳过 peek_frame 对照');
   }
@@ -115,6 +119,8 @@ try {
     const f = compare('--workers 3 --shutter 180', shut.seqs, shut.pars);
     failures.push(...f);
     if (!f.length) console.log(`✓ 快门模式下 --workers 3 与 --workers 1 的 ${shut.seqs.length} 帧逐字节相同`);
+  } else if (NO_SKIP) {
+    failures.push('没有 numpy，而 HX_NO_SKIP=1 不许跳过快门模式');
   } else {
     console.log('SKIP: 没有 numpy，跳过快门模式');
   }

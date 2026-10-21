@@ -1968,3 +1968,20 @@
 
     **通用规则**：渲染器能并行的前提是「一帧的画面与 seek 历史无关」，而 GSAP 的惰性初始化天然违反它 —— 渲染器必须替帧补齐历史，
     预览工具必须用与渲染器相同的历史。写帧时，同一元素同一属性上不要让两组补间时间重叠。
+
+139. **★（2026-10-21）渲染器解析出了 Chrome，却一直用 playwright 自带的 chromium；CI 全绿，渲染测试一次没跑。**
+    渲染类回归测试第一次在 GitHub runner 上跑（此前 CI 因账户问题没启动过）：依赖都装好了，`test_seek_history` 仍打印
+    「SKIP: 渲染器起不来」，末尾是 playwright 的 `Executable doesn't exist … npx playwright install` 提示框。runner 上明明有 Chrome。
+
+    **1) 定位**：`render_video.mjs` 的 `resolveBrowserExec()` 结果只进了日志（「浏览器：…」），`launchOpts` 里没有 `executablePath`；
+    `peek_frame` / `check_layout` / `cover_build` / `check_cover` 都有这一行。复现：`PLAYWRIGHT_BROWSERS_PATH` 指向空目录、
+    `BROWSER_PATH` 指向一个真实的 chromium，渲染照样报找不到自带浏览器 —— `--browser` 与 `BROWSER_PATH` 从 2.0.8 起就是摆设。
+    开发机上看不出来，是因为 `~/.cache/ms-playwright` 早就有自带 chromium（跑过 `npx playwright install` 或别的项目装过）。
+    同一次运行里 qc 连续性、拼音轨两个测试的端到端段也 SKIP：runner 的 PATH 上没有 ffmpeg，而测试只认 `shutil.which`。
+
+    **2) 修法**：`if (browserExec) launchOpts.executablePath = browserExec;`。CI 把 imageio-ffmpeg 的二进制以 `ffmpeg` 为名放上 PATH，
+    并设 `HX_NO_SKIP=1`，三个渲染类测试缺依赖时判失败。验证：上述复现在修复后通过（60 帧逐字节相同、peek 差 0）；
+    设 `HX_NO_SKIP=1` 时，无浏览器或无 ffmpeg 退出码 1；不设时本地行为不变（SKIP 并以 0 退出）。
+
+    **通用规则**：「缺依赖就 SKIP」的测试在 CI 上要么装齐依赖，要么禁止 SKIP —— 否则 CI 的绿只说明它跳过了。
+    「解析出来并打了日志」不等于「用上了」：日志里有「浏览器：/usr/bin/google-chrome」，实际启动的却是另一个二进制。

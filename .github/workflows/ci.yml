@@ -11,6 +11,8 @@ on:
 # 全局强制 UTF-8：ubuntu 上无感，windows 上是生死线。
 env:
   PYTHONUTF8: "1"
+  # 渲染类测试缺浏览器 / ffmpeg / numpy 时本地会 SKIP；CI 上不许跳过 —— 跳过也是绿的，等于没测。
+  HX_NO_SKIP: "1"
 
 # GITHUB_TOKEN 只给读权限：CI 只读代码、跑检查，不写仓库（未声明时拿的是仓库默认权限）。
 permissions:
@@ -46,14 +48,15 @@ jobs:
           node-version: "22"
 
       # --- 渲染类回归测试的依赖：node/ 下的 playwright-core（按 lock 装），以及 numpy / pillow / imageio-ffmpeg ---
-      # 缺 playwright-core 不在 seek history 测试的 SKIP 条件里，会直接失败；
-      # 缺 numpy / PIL / ffmpeg 时快门、peek、qc 连续性、拼音轨的 B 段都静默跳过，CI 全绿却什么都没测。
+      # 浏览器用 runner 自带的 Chrome / Edge。runner 的 PATH 上没有 ffmpeg，而测试只认 PATH（shutil.which），
+      # 所以把 imageio-ffmpeg 的静态二进制以 ffmpeg 为名放上 PATH —— 与技能「PATH 取不到就回退 imageio-ffmpeg」同一来源。
       - name: Install render dependencies
         shell: bash
         run: |
           set -e
           npm ci --prefix node --no-audit --no-fund
           python -m pip install numpy pillow imageio-ffmpeg
+          python -c "import imageio_ffmpeg, os, shutil; d = os.path.join(os.environ['RUNNER_TEMP'], 'ffbin'); os.makedirs(d, exist_ok=True); shutil.copy(imageio_ffmpeg.get_ffmpeg_exe(), os.path.join(d, 'ffmpeg.exe' if os.name == 'nt' else 'ffmpeg')); open(os.environ['GITHUB_PATH'], 'a').write(d + '\\n')"
 
       # --- 仓库自洽性：版本号漂移、风格目录漂移、残留外链 ---
       - name: Repository integrity check

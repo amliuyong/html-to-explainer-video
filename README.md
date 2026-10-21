@@ -237,7 +237,8 @@ node   tests/test_page_probe_escapes.mjs   # 交给浏览器执行的源码字�
 node   tests/test_seek_history.mjs         # 渲染与 seek 历史无关：--workers 3 与 1 逐帧一致（缺浏览器时跳过）
 ```
 
-CI（`.github/workflows/ci.yml`）在 Ubuntu 与 Windows、Python 3.9 与 3.13 上跑以上检查。
+CI（`.github/workflows/ci.yml`）在 Ubuntu 与 Windows、Python 3.9 与 3.13 上跑以上检查，并设 `HX_NO_SKIP=1`：
+缺浏览器、ffmpeg 或 numpy 时直接失败，不会跳过。本地要同样严格，跑测试前设这个环境变量即可。
 
 ---
 
