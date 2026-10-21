@@ -133,6 +133,9 @@ const seek = async (o) => {
     // o.sec 是「绝对秒」（本帧本地坐标系）；否则按百分比换算
     seekTo = (o.sec != null) ? Math.max(0, Math.min(o.sec, dur)) : dur * (pct / 100);
     tl.pause(0, false);
+    // ★ 按项目帧率从 0 逐帧走到目标，与 render_video 的 seek 历史一致：GSAP 补间在首次被渲染时
+    //   才记录起点（相对值、to() 起点），一步跳过去看到的可能不是成片里的那一帧（lessons #138）
+    if (o.fps > 0) { const last = Math.floor(seekTo * o.fps + 1e-9); for (let k = 1; k <= last; k++) tl.pause(k / o.fps, false); }
     tl.pause(seekTo, false);       // ← 第二参必须 false
   }
   if (document.getAnimations) {
@@ -234,14 +237,14 @@ async function main() {
       // --at-sec：先探一次轴长，把「绝对秒」换算成百分比，永远落在指定秒上
       let items;
       if (secs.length) {
-        const probe = await page.evaluate(seek, { pct: 0 });
+        const probe = await page.evaluate(seek, { pct: 0, fps: pj.fps || 30 });
         const dur = probe.dur || 0;
         items = secs.map((s) => ({ sec: s, pct: dur > 0 ? Math.round((s / dur) * 1000) / 10 : 0 }));
       } else {
         items = pcts.map((p) => ({ pct: p, sec: null }));
       }
       for (const it of items) {
-        const r = await page.evaluate(seek, { pct: it.pct, sec: it.sec });
+        const r = await page.evaluate(seek, { pct: it.pct, sec: it.sec, fps: pj.fps || 30 });
         if (args.guides) await page.evaluate(guides, { W, H, safeSide: 64, safeBottom: args.safeBottom || 170 });
         const tag = it.sec != null
           ? `sec${String(it.sec).replace('.', '_')}@${String(it.pct).replace('.', '_')}pct`

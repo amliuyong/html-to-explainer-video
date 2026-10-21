@@ -33,7 +33,9 @@
  *                             截完之后做一次），1080p 长片峰值可达 ~90 GB —— 会中途写满盘，
  *                             且 I/O 打架会把速率从 110 帧/分拖到 12 帧/分（看着像"卡住"）。
  *   · --workers N             **多浏览器**并行（不是多 page —— Chrome 的截图编码
- *                             在浏览器进程里，共用一个浏览器时并发是白挂的）
+ *                             在浏览器进程里，共用一个浏览器时并发是白挂的）。每个页面截图前按顺序
+ *                             补齐跳过的帧（只推进 GSAP），时间轴状态与 --workers 1 一致（lessons #138）
+ *   · --paint-history         补齐时也完整绘制：移动元素边缘的抗锯齿也与顺序渲染一致（≤ 1 级），约慢一倍
  *   · --resume / --recycle    断点续渲 / 定期重启浏览器（4K 长片会 OOM）
  *   · --audio <文件>          指定成片音轨（默认取 audio/narration-full.mp3）
  *   · <out>.render.json       渲染元数据（档位/快门/样本/耗时），给 QC 读
@@ -50,7 +52,7 @@
  *        [--quality 1080p|2k|4k] [--fps 30|60] [--scale 1]
  *        [--shutter 180] [--shutter-flush 4] [--shutter-only a,b] [--samples 8]
  *        [--motion-gap 24] [--motion-hold 1] [--samples-min 4] [--samples-max 12]
- *        [--workers 6] [--concurrency 3] [--recycle 150] [--resume]
+ *        [--workers 6] [--concurrency 3] [--recycle 150] [--resume] [--paint-history]
  *        [--preview 30] [--keep-frames] [--mux-only] [--only <场景id,场景id>]
  *        [--audio audio/narration-full.mp3]
  *        [--png-fast|--jpeg] [--jpeg-quality 95] [--crf 18] [--preset medium] [--browser <exe>]
@@ -122,6 +124,7 @@ function parseArgs(argv) {
     else if (t === '--scale') a.scale = parseFloat(argv[++i]);
     else if (t === '--audio') a.audio = argv[++i];
     else if (t === '--keep-frames') a.keepFrames = true;
+    else if (t === '--paint-history') a.paintHistory = true;
     else if (t === '--mux-only') a.muxOnly = true;
     else if (t === '--only') a.only = String(argv[++i] || '').split(',').map((s) => s.trim()).filter(Boolean);
     else if (t === '--browser') a.browser = argv[++i];
@@ -324,6 +327,20 @@ const frameSeek = async (o) => {
   if (window.__mgSubUpdate) window.__mgSubUpdate(t);
   if (window.__mgProgressUpdate) window.__mgProgressUpdate(total ? (globalT / total) : 0);
   await new Promise((r) => { requestAnimationFrame(() => { requestAnimationFrame(r); }); });
+  return tl.time();
+};
+
+// 补齐 seek 历史：按顺序把 GSAP 推过若干时刻，不截图、不等 rAF。
+// GSAP 的补间在**第一次被渲染时**才记录起点（相对值 '-=26'、to() 的起点、函数值），
+// 所以一帧的画面取决于这个页面此前 seek 过哪些时刻。--workers 的每个页面只截分给自己的帧，
+// 不补齐的话同一个补间在不同页面里于不同帧定起点 → 交错写盘的帧对不齐（lessons #138）。
+const historySeek = (o) => {
+  let tl = window.__tl || null;
+  if (!tl && window.__timelines) {
+    for (const k in window.__timelines) { if (window.__timelines[k]) { tl = window.__timelines[k]; break; } }
+  }
+  if (!tl) throw new Error('no GSAP timeline found (window.__tl)');
+  for (const t of o.times) tl.pause(t, false);
   return tl.time();
 };
 
@@ -578,6 +595,7 @@ async function main() {
   let captures = 0;
   let stillFrames = 0;
   let motionHolds = 0;        // 其中由 __motion 位移闸门判掉的（其余靠逐字节比对）
+  let historySeeks = 0;       // 为了与顺序渲染的 seek 历史一致而补的空 seek（不截图）
   let shutterFrames = 0;      // 真正走了快门路径的帧数（= 总计费帧；其余是零成本单张）
   const t0 = Date.now();
   const ext = args.jpeg ? 'jpg' : 'png';
@@ -613,7 +631,8 @@ async function main() {
     const blocks = (seg?.blocks || []).map((b) => ({ from: b.from, to: b.to, text: b.text, size: b.size }));
     await page.evaluate(overlaySetupJs(blocks, fps, pj.progress !== false, chapterTicks));
     const hasMotion = await page.evaluate(`typeof window.__motion === 'function'`);
-    return { page, cdp, hasMotion };
+    // cursor = 这个页面已按顺序 seek 到的帧号（-1 = 还没 seek 过）；shotOne 据此补齐历史
+    return { page, cdp, hasMotion, cursor: -1 };
   }
 
   // ---- 单帧：抓图（含快门样本） ----
@@ -625,20 +644,11 @@ async function main() {
     return true;
   }
 
-  async function shotOne(ctx, sc, i) {
+  // 第 i 帧在顺序渲染里会 seek 到的时刻。快门帧 = 快门窗口内的 S 个样本，
+  // 位移不到 --motion-hold 的帧 = 帧时刻一张（hold）；非快门帧 = 帧时刻一张。
+  async function seekPlan(ctx, sc, i) {
     const t = i / fps;
-    const globalT = sc.globalStart + t;
-    const n = sc.gf + i + 1;
-    const finalPath = path.join(framesDir, frameName(n, ext));
-
-    if (!shutterHere(sc)) {
-      await ctx.page.evaluate(frameSeek, { t, globalT, total: renderSec });
-      await captureFrame({ page: ctx.page, cdp: ctx.cdp, outPath: finalPath, args, W: pjW, H: pjH });
-      captures++;
-      return;
-    }
-    shutterFrames++;
-
+    if (!shutterHere(sc)) return { t, samples: null, farPx: null };
     // 快门开合区间（秒），以帧时刻为中心
     const openS = (shutter / 360) / fps;
     const tA = Math.max(0, t - openS / 2);
@@ -646,7 +656,7 @@ async function main() {
     // ★ 页面若诚实导出 __motion(tA,tB)（这段快门窗口里屏幕最远走了几 px），先用它当
     //   **真正的闸门**：位移不到 --motion-hold 个设备像素的帧，肉眼不可能看到拖影 ——
     //   直接单张落盘，一次多余采样都不截。**这才是"没用到动效就不开快门"的可靠做法。**
-    //   没有 __motion 时只能退回下面的逐字节比对（`first.equals(last)`），而那个阈值
+    //   没有 __motion 时只能退回 shotOne 里的逐字节比对（`first.equals(last)`），而那个阈值
     //   等于 0：快门窗口只有 (shutter/360)/fps ≈ 16.7ms，任何亚像素级的抗锯齿差异都会
     //   让两张 PNG 不等 —— 实测整片只有 ~20% 的帧被判成 hold（那 20% 是真的逐字节没动）。
     let farPx = null;
@@ -658,15 +668,7 @@ async function main() {
       } catch { /* 页面 __motion 抛错就用固定样本数 + 逐字节判 hold */ }
     }
     const holdPx = args.motionHold != null ? args.motionHold : 1.0;
-    if (farPx != null && farPx < holdPx) {
-      await ctx.page.evaluate(frameSeek, { t, globalT, total: renderSec });
-      await captureFrame({ page: ctx.page, cdp: ctx.cdp, outPath: finalPath, args, W: pjW, H: pjH });
-      captures++;
-      stillFrames++;
-      motionHolds++;
-      return;
-    }
-
+    if (farPx != null && farPx < holdPx) return { t, samples: null, farPx, motionHold: true };
     let S = args.samples || 8;
     if (farPx != null) {
       const gap = args.motionGap || 24;
@@ -677,6 +679,60 @@ async function main() {
     for (let k = 0; k < S; k++) {
       times.push(Math.min(Math.max(tA + (tB - tA) * ((k + 0.5) / S), 0), renderSec - 1e-6));
     }
+    return { t, samples: times, farPx };
+  }
+
+  // 让页面的 seek 历史与顺序渲染一致：把 (cursor, i) 之间每一帧本会到达的时刻按顺序 seek 一遍。
+  // 快门帧只需首、末两个样本：中间样本都早于末样本，往回 seek 不会让任何补间首次渲染。
+  async function catchUp(ctx, sc, i) {
+    if (i <= ctx.cursor) throw new Error(`seek 历史倒退：页面已到第 ${ctx.cursor} 帧，又要截第 ${i} 帧`);
+    const times = [];
+    for (let j = ctx.cursor + 1; j < i; j++) {
+      const plan = await seekPlan(ctx, sc, j);
+      if (plan.samples) times.push(plan.samples[0], plan.samples[plan.samples.length - 1]);
+      else times.push(plan.t);
+    }
+    if (!times.length) return;
+    if (args.paintHistory) {
+      // --paint-history：补齐的每个时刻也完整绘制一次（不截图）。移动中元素的边缘抗锯齿取决于
+      // 页面此前**绘制**过哪些帧（光栅缓存），只推进时间轴时个别像素仍可与顺序渲染差几十级；
+      // 实测补绘后 ≤ 1 级，代价是并行截图吞吐约减半。
+      for (const tt of times) await ctx.page.evaluate(frameSeek, { t: tt, globalT: sc.globalStart + tt, total: renderSec });
+    } else {
+      await ctx.page.evaluate(historySeek, { times });
+    }
+    historySeeks += times.length;
+  }
+
+  async function shotOne(ctx, sc, i) {
+    const t = i / fps;
+    const globalT = sc.globalStart + t;
+    const n = sc.gf + i + 1;
+    const finalPath = path.join(framesDir, frameName(n, ext));
+
+    await catchUp(ctx, sc, i);
+    ctx.cursor = i;
+    const plan = await seekPlan(ctx, sc, i);
+
+    if (!plan.samples && !plan.motionHold) {
+      await ctx.page.evaluate(frameSeek, { t, globalT, total: renderSec });
+      await captureFrame({ page: ctx.page, cdp: ctx.cdp, outPath: finalPath, args, W: pjW, H: pjH });
+      captures++;
+      return;
+    }
+    shutterFrames++;
+
+    if (plan.motionHold) {
+      await ctx.page.evaluate(frameSeek, { t, globalT, total: renderSec });
+      await captureFrame({ page: ctx.page, cdp: ctx.cdp, outPath: finalPath, args, W: pjW, H: pjH });
+      captures++;
+      stillFrames++;
+      motionHolds++;
+      return;
+    }
+
+    const times = plan.samples;
+    const S = times.length;
     const first = await (async () => { await ctx.page.evaluate(frameSeek, { t: times[0], globalT: sc.globalStart + times[0], total: renderSec }); return captureBytes({ page: ctx.page, cdp: ctx.cdp, args }); })();
     const last = await (async () => { await ctx.page.evaluate(frameSeek, { t: times[S - 1], globalT: sc.globalStart + times[S - 1], total: renderSec }); return captureBytes({ page: ctx.page, cdp: ctx.cdp, args }); })();
     captures += 2;
@@ -825,7 +881,7 @@ async function main() {
     if (args.resume) log(`--resume：${all.length - pendingFrames.length} 帧已在盘上，补渲 ${pendingFrames.length} 帧`);
 
     const nw = Math.max(1, Math.min(workers, pendingFrames.length || 1));
-    log(`帧级步进：${nw} 个浏览器，每个认领 f ≡ k (mod ${nw})`);
+    log(`帧级步进：${nw} 个浏览器从共享队列按帧号顺序取帧；每个页面截图前补齐跳过的帧（seek 历史与顺序渲染一致）`);
     let next = 0;
     const take = () => (next < pendingFrames.length ? pendingFrames[next++] : null);
 
@@ -1017,6 +1073,7 @@ async function main() {
     log(`截图完成：${doneFrames} 帧 / ${captures} 次截图`
       + ` · 其中 ${stillFrames} 帧是 hold（位移闸门 ${motionHolds} + 逐字节 ${stillFrames - motionHolds}）`
       + ` · 耗时 ${fmt(shotSec)}s · ${fmt(doneFrames / shotSec, 2)} 帧/秒`);
+    log(`seek 历史：补齐 ${historySeeks} 次${args.paintHistory ? '绘制' : '空 seek'}，每个页面的时间轴历史与顺序渲染一致`);
     if (useShutter) {
       log(`快门覆盖面：${shutterFrames}/${doneFrames} 帧走快门采样（${fmt((shutterFrames / doneFrames) * 100, 1)}%）`
         + ` —— 其余 ${doneFrames - shutterFrames} 帧是零成本单张，不产生采样也不进积分`);

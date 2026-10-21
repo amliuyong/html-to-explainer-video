@@ -116,12 +116,15 @@ const FONT_WAIT = `new Promise(function (resolve) {
 })`;
 
 // ★ 真函数字面量（传字符串只会被求值不执行 → 每帧静止且零报错）
-const seekEnd = async () => {
+const seekEnd = async (o) => {
   const tl = window.__tl || (window.__timelines && Object.values(window.__timelines)[0]) || null;
   let dur = 0;
   if (tl && typeof tl.duration === 'function') {
     dur = tl.duration() || 0;
     tl.pause(0, false);
+    // ★ 按项目帧率逐帧走到轴末，与 render_video 的 seek 历史一致（lessons #138）
+    const fps = (o && o.fps) || 0;
+    if (fps > 0) { const last = Math.floor(dur * fps + 1e-9); for (let k = 1; k <= last; k++) tl.pause(k / fps, false); }
     tl.pause(dur, false);          // ← 第二参必须 false
   }
   if (document.getAnimations) {
@@ -504,7 +507,7 @@ async function main() {
       await page.addInitScript('window.__MG_RENDER__ = true;');
       await page.goto(pathToFileURL(path.join(framesDir, `${id}.html`)).href, { waitUntil: 'domcontentloaded' });
       await page.evaluate(FONT_WAIT);
-      const dur = await page.evaluate(seekEnd);
+      const dur = await page.evaluate(seekEnd, { fps: pj.fps || 30 });
       const r = await page.evaluate(audit, { W, H, safeBottom, safeSide, ignore: args.ignore || [], strict: !!args.strict });
       r.id = id; r.duration = dur;
       report.push(r);
