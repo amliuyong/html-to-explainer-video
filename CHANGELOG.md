@@ -5,6 +5,18 @@
 
 ---
 
+## [2.0.10] — 2026-10-21
+
+### 修复
+
+- **英文封面的钩子认错**：`check_cover.mjs` 判「纯数字串」的正则写在 `PAGE_PROBE` 模板字符串里，`\d` 与 `\-`
+  被求值成 `d` 与 `-`，页面拿到 `/^[d.,%$¥+-–—:：]+$/` —— `+-–` 成了 U+002B..U+2013 的区间，所有拉丁字母都在里面。
+  英文钩子因此被当成纯数字跳过，23px 的小卡片顶替成钩子，「钩子字号 / 钩子是最大的文字 / 行宽 / 孤字」整条链量错元素
+  （中文钩子不在区间内，不受影响）（#3，lessons #137）。
+  - 改成双层反斜杠 `/^[\\d.,%$¥+\\-–—:：]+$/`。中文封面的实测输出修复前后逐字相同。
+  - 新增回归测试 `tests/test_page_probe_escapes.mjs` 并接入 CI：按模板字符串求值 `PAGE_PROBE` 后断言 `pureNumber` / `norm` 的行为；
+    并扫描 `scripts/*.mjs` 里所有交给 `page.evaluate` / `addInitScript` 的模板字符串，反斜杠只许 `\\`、`\u`、`\x`、`` \` ``、`\$`。
+
 ## [2.0.9] — 2026-10-21
 
 ### 变更
@@ -57,5 +69,6 @@
   场景边界画面整体突变判「场间硬切」WARN（阈值按实片标定：硬切 4–47，带过渡 ≤ 0.25）。`--skip-continuity` 可跳过。
 - 新增回归测试 `tests/test_lint_frames.py`、`tests/test_qc_continuity.py`，并接入 CI。
 
+[2.0.10]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.10
 [2.0.9]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.9
 [2.0.8]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.8

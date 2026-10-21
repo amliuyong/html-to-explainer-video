@@ -233,6 +233,7 @@ python tests/test_tts_ali.py               # 阿里 TTS（不联网、不需要�
 python tests/test_lint_frames.py           # lint：搭建期读布局
 python tests/test_qc_continuity.py         # 逐帧连续性（缺 numpy / ffmpeg 时跳过端到端段）
 node   tests/test_beats_norm.mjs           # 节拍匹配
+node   tests/test_page_probe_escapes.mjs   # 交给浏览器执行的源码字符串：转义不被模板字符串吃掉
 ```
 
 CI（`.github/workflows/ci.yml`）在 Ubuntu 与 Windows、Python 3.9 与 3.13 上跑以上检查。

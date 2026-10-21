@@ -127,7 +127,10 @@ const PAGE_PROBE = `(() => {
     const wide = (t.match(/[\u3400-\u9FFF\uF900-\uFAFF\u3000-\u303F\uFF00-\uFFEF]/g) || []).length;
     const narrow = t.length - wide;
     const weight = wide + narrow * 0.55;
-    const pureNumber = /^[\d.,%$¥+\-–—:：]+$/.test(t);
+    // ★ 同上，双层反斜杠。只写一层时页面拿到的是 /^[d.,%$¥+-–—:：]+$/ ——「+-–」成了
+    //   U+002B..U+2013 的区间，所有拉丁字母都在里面，英文钩子被当成纯数字跳过，
+    //   小卡片顶替成钩子（lessons #137）。回归测试：tests/test_page_probe_escapes.mjs
+    const pureNumber = /^[\\d.,%$¥+\\-–—:：]+$/.test(t);
     if (weight < 6 || pureNumber) continue;
     if (fs > hookFs) { hookFs = fs; hookEl = el; }
   }
