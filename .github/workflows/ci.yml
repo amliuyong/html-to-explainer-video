@@ -78,6 +78,11 @@ jobs:
       - name: Page probe escape regression test
         run: node tests/test_page_probe_escapes.mjs
 
+      # --- 渲染与 seek 历史无关：--workers 3 与 --workers 1 逐帧一致（lessons #138；缺浏览器/ffmpeg 时跳过）---
+      # GSAP 补间在首次渲染时才记录起点，并行页面不补齐跳过的帧就会各定各的起点，成片来回跳，qc ⑥ 抓不到。
+      - name: Seek history regression test
+        run: node tests/test_seek_history.mjs
+
       # --- 搭建期读布局：--workers 并行渲染下每 N 帧跳一下，单页检查全绿（lessons #134）---
       - name: Frame lint regression test
         run: python tests/test_lint_frames.py

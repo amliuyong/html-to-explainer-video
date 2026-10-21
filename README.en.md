@@ -243,6 +243,7 @@ python tests/test_lint_frames.py
 python tests/test_qc_continuity.py         # end-to-end part skips without numpy / ffmpeg
 node   tests/test_beats_norm.mjs
 node   tests/test_page_probe_escapes.mjs   # page-evaluated source strings keep their regex escapes
+node   tests/test_seek_history.mjs         # renders do not depend on seek history (skips without a browser)
 ```
 
 CI (`.github/workflows/ci.yml`) runs these on Ubuntu and Windows with Python 3.9 and 3.13.

@@ -1,6 +1,6 @@
 ---
 name: html-to-explainer-video
-version: 2.0.10
+version: 2.0.11
 description: 把任意主题做成讲解/科普视频并渲染成 MP4（HTML/CSS/GSAP 画面 + 确定性逐帧渲染 + 配音（默认阿里云百炼，可切 edge-tts / 火山）+ 词级硬字幕）。触发场景：要做科普/讲解/教学/知识/产品类视频、「讲一下 X 做成视频」、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面/9:16 封面、要用 html-video 那种模板化画面但更稳的音画同步、anything2explainer 换 HTML 渲染，或提到 html-to-explainer-video / HTML 讲解视频 / explainer video / MG 视频。内置 23 个模板风格（8 类）与 40+ 动作词汇的动效库，主题驱动模板编排；支持 4K60、快门运动模糊、多进程提速、断点续渲；流程含六个用户确认点（渲染通道是硬闸门）。独立可移植，不依赖 html-video / anything2explainer。
 agent_created: true
 ---
@@ -110,7 +110,7 @@ PY=<venv python 绝对路径>          # 派子 agent 时必须展开成绝对�
 "$PY" <skill>/scripts/gate_check.py     --project . --phase render   # ★★ 渲染前必过：render_channel（渲染通道）未拍板 → 拒绝渲染
 "$PY" <skill>/scripts/lint_frames.py    --project .   # 静态体检：十条契约违规（渲染前一秒出结果，比渲完再发现便宜得多）
 node <skill>/scripts/check_layout.mjs   .             # ★ 几何体检：越界 / 侵入字幕带 / 元素互相遮挡（lint 看不见几何）
-node <skill>/scripts/render_video.mjs   . [--audio audio/narration-full.mp3] [--profile draft|balanced|final|master] [--quality 1080p|2k|4k] [--fps 30|60] [--shutter 180] [--shutter-flush 4] [--shutter-only <场景id,场景id>] [--motion-hold 1] [--preview 30] [--keep-frames] [--only <场景id>] [--mux-only] [--png-fast|--jpeg --jpeg-quality 95] [--workers N] [--concurrency N] [--resume]   # 渲染：out/<slug>.mp4（★ 通道/档位先按确认点 5 问过用户；★ 通道与档位必须一起报——`--jpeg` 与默认快门同时用，中间帧扩展名要一路贯穿到积分器；★ 快门覆盖面也要问：全片开还是 `--shutter-only` 点名几场）
+node <skill>/scripts/render_video.mjs   . [--audio audio/narration-full.mp3] [--profile draft|balanced|final|master] [--quality 1080p|2k|4k] [--fps 30|60] [--shutter 180] [--shutter-flush 4] [--shutter-only <场景id,场景id>] [--motion-hold 1] [--preview 30] [--keep-frames] [--only <场景id>] [--mux-only] [--png-fast|--jpeg --jpeg-quality 95] [--workers N] [--concurrency N] [--resume] [--paint-history]   # 渲染：out/<slug>.mp4（★ 通道/档位先按确认点 5 问过用户；★ 通道与档位必须一起报——`--jpeg` 与默认快门同时用，中间帧扩展名要一路贯穿到积分器；★ 快门覆盖面也要问：全片开还是 `--shutter-only` 点名几场）
 "$PY" <skill>/scripts/qc_check.py       --project .   # 体检 + 抽帧速览图 + 逐帧连续性（单帧跳动 FAIL / 场间硬切 WARN）
 node <skill>/scripts/cover_build.mjs    .             # 封面：out/cover_169.png + cover_34.png（竖版再加 cover_916.png）
 node <skill>/scripts/check_cover.mjs    .             # 封面终态几何实测：边距/钩子字号/行宽/孤字/文字重叠/9:16 禁两栏（FAIL 清零再交）
@@ -337,7 +337,7 @@ FAIL 清零才算封面过。退出码 0/1，可直接挂流水线。
 | 末块字幕收尾 | 语音**真实结束**（speech_end_sec）—— 两级时钟，混用则「字幕过了语音还没过」 |
 | 字幕节拍 | 词级时间戳首字对帧号，绝不按字数插值（中文同字数时长差 3 倍）。阿里取 sentence-end 帧的 `sentence.words`（**需显式开 `word_timestamp_enabled`，且时间戳落在展开读法后的文本上 —— `tts_ali.py` 会映射回原文**，否则「2026→二零二六」的「二」误配后文「第二」，字幕整体提前数秒），edge 取 `WordBoundary`，火山取 `sentence.words[]`（**需显式开 `audio_params.enable_subtitle`，本包默认开**；不开会静默退回插值） |
 | 画面节拍 | 场景 HTML 里 `B('块文本')` 取该词起播秒排 GSAP —— 画面与吐字同源 |
-| 渲染 | **确定性 seek**：`tl.pause(t, false)` + CSS 动画 `currentTime=t×1000` → 截图 → ffmpeg 合成。无实时录制，html-video 的引导期/起播/字体坑整类不存在。**第二参必须传 `false`**，少了它 `onUpdate` 类回调被静默抑制（数字滚动恒为初值，见 lessons #27） |
+| 渲染 | **确定性 seek**：`tl.pause(t, false)` + CSS 动画 `currentTime=t×1000` → 截图 → ffmpeg 合成。无实时录制，html-video 的引导期/起播/字体坑整类不存在。**第二参必须传 `false`**，少了它 `onUpdate` 类回调被静默抑制（数字滚动恒为初值，见 lessons #27）。`--workers` 的每个页面截图前按顺序补齐跳过的帧，时间轴状态与顺序渲染一致（lessons #138） |
 | 字幕层/进度条 | 渲染器注入并逐帧驱动（`#mg-subs` 44px 白字黑边 bottom 96px；`#mg-progress` accent 填充），帧作者零负担 |
 | 场间过渡 | 渲染器**只拼接、不做转场**：段间 gap 算在上一场，本场帧播到 `duration + __SEG__.gap` —— 出场写在 `[speech_end, duration + gap]` 里，不写就是硬切（契约 10）。搭建时**不读布局**，要量就生成期量好写常量，否则 `--workers` 并行渲染每 N 帧跳一下（契约 9） |
 

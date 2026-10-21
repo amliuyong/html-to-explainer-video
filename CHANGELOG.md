@@ -5,6 +5,23 @@
 
 ---
 
+## [2.0.11] — 2026-10-21
+
+### 修复
+
+- **并行渲染的画面依赖 seek 历史，成片来回跳**（#5，lessons #138）：GSAP 补间在首次被渲染时才记录起点（相对值、`to()` 的起点、函数值）。
+  `--workers N` 的每个浏览器只 seek 分给自己的帧，同一个补间在不同页面里于不同帧定起点，交错写盘的帧对不齐。
+  实例：一列卡片错峰入场、同时用 `y: '-=26'` 整列上漂，第 4 张卡片相邻帧之间差到 22 px。`qc_check` ⑥ 只抓单帧跳动，抓不到。
+  - `render_video.mjs`：每个页面记录已 seek 到的帧号，截第 i 帧前按顺序补齐跳过的帧（只推进 GSAP，不截图）。
+    快门帧补首、末两个样本的时刻。换场、重试、`--recycle`、`--resume` 都从帧 0 补起。时间轴状态与 `--workers 1` 一致；补齐的代价是截图吞吐约降 9%（本机 1705 帧、6 进程：48.7 → 44.5 帧/秒）。
+  - 新增 `--paint-history`：补齐时也完整绘制。移动元素边缘的抗锯齿取决于页面此前绘制过哪些帧，
+    只补时间轴时个别像素仍差几十级，加此开关后实测 ≤ 1 级，并行截图吞吐约减半。
+  - `peek_frame.mjs` / `check_layout.mjs`：按项目帧率从 0 逐帧走到目标时刻，看到的就是成片里那一帧（原来一步跳过去，是第三种状态）。
+  - 修正日志：并行路径是共享队列取帧，不是 `f ≡ k (mod N)`。
+  - `frame-contract.md`：说明 seek 历史，以及同一属性上时间重叠的补间即使顺序渲染也不对，应拆到父子元素或不同属性。
+  - 新增回归测试 `tests/test_seek_history.mjs` 并接入 CI：480×270 的测试工程上，`--workers 3` 与 `--workers 1` 逐帧 PNG 字节比较（含快门模式），
+    `peek_frame` 与成片同一帧逐像素比较。旧代码上 24/60 帧不一致、peek 最大差 204；新代码逐字节相同、peek 差 0。
+
 ## [2.0.10] — 2026-10-21
 
 ### 修复
@@ -69,6 +86,7 @@
   场景边界画面整体突变判「场间硬切」WARN（阈值按实片标定：硬切 4–47，带过渡 ≤ 0.25）。`--skip-continuity` 可跳过。
 - 新增回归测试 `tests/test_lint_frames.py`、`tests/test_qc_continuity.py`，并接入 CI。
 
+[2.0.11]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.11
 [2.0.10]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.10
 [2.0.9]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.9
 [2.0.8]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.8
