@@ -5,12 +5,24 @@
 
 ---
 
-## [未发布]
+## [2.0.9] — 2026-10-21
 
 ### 变更
 
 - 阿里引擎中文默认音色由 `anmingyuan_v3.1`（安明远，男声）改为 `xuyuyuan_v3.1`（许玉远，女声）；
   英文仍为 `Andy_v3.1`。已有项目 `project.json` 里写死的音色不受影响。
+
+### 修复
+
+- **长片字幕越来越落后于配音**：`layout.json` 按每段 MP3 的容器时长排，`narration-full.mp3` 却把解码后的段直接 concat；
+  解码出来的采样比容器时长平均短约 36 ms（MP3 的 priming / padding），8 分钟、53 段的片子到片尾音轨提前约 1.9 s，
+  画面、硬字幕、SRT/VTT 都比声音晚。抽帧 QC 和 0.5 s 的时长容差都看不出来（lessons #136）。
+  - `timeline_build.py` 拼音轨时每段补齐 / 截到 `round(duration_sec × sr)` 个采样（`apad` + `atrim`），
+    段间静音按采样数补到下一段的 `round(start_sec × sr)` —— 每段正好占住它在 layout 里的槽位。
+  - 原来「音轨与视频差 > 0.5 s」的提醒改成硬检查：拼完解码量总长，和 layout 总长差超过 1 帧就非零退出。
+  - `layout.json` 各段的 `start_sec` / `duration_sec` 与总帧数不变：已出片的项目重跑 `timeline_build.py`，
+    只把新音轨换进成片即可，不用重渲帧。`_total.audio_duration_sec` 改记解码后的真实总长（修正后等于视频总长）。
+  - 新增回归测试 `tests/test_timeline_build.py`（合成 beep 样本，并反向验证旧拼法过不了），并接入 CI。
 
 ## [2.0.8] — 2026-10-19
 
@@ -45,4 +57,5 @@
   场景边界画面整体突变判「场间硬切」WARN（阈值按实片标定：硬切 4–47，带过渡 ≤ 0.25）。`--skip-continuity` 可跳过。
 - 新增回归测试 `tests/test_lint_frames.py`、`tests/test_qc_continuity.py`，并接入 CI。
 
+[2.0.9]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.9
 [2.0.8]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.8
