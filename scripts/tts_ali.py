@@ -413,7 +413,7 @@ def _one_request(text: str, voice: str, cred: dict[str, str], rate: float,
                  "Content-Type": "application/json",
                  "X-DashScope-SSE": "enable"})
     try:
-        resp = urllib.request.urlopen(req, timeout=timeout)
+        resp = urllib.request.urlopen(req, timeout=timeout)  # nosec B310 - base_url 已在 load_credentials 限定为 https://
     except urllib.error.HTTPError as e:      # 必须在 URLError 之前（它是子类）
         raise _http_error(e) from None
     except urllib.error.URLError as e:
