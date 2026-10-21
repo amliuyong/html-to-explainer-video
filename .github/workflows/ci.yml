@@ -73,6 +73,11 @@ jobs:
       - name: Beats matcher regression test
         run: node tests/test_beats_norm.mjs
 
+      # --- 交给浏览器执行的源码字符串：模板字符串会吃掉 \d \- 这类转义（lessons #137）---
+      # check_cover 的 pureNumber 正则因此退化，英文钩子被当成纯数字跳过，小卡片顶替成钩子。
+      - name: Page probe escape regression test
+        run: node tests/test_page_probe_escapes.mjs
+
       # --- 搭建期读布局：--workers 并行渲染下每 N 帧跳一下，单页检查全绿（lessons #134）---
       - name: Frame lint regression test
         run: python tests/test_lint_frames.py
