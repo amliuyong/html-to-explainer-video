@@ -531,6 +531,8 @@ async function main() {
 
   const browserExec = args.browser || resolveBrowserExec();
   const launchOpts = { viewport: { width: pjW, height: pjH }, deviceScaleFactor: scale };
+  // 不传 executablePath，playwright 只认自带 chromium：只装了 Chrome / Edge 的机器起不来（lessons #139）
+  if (browserExec) launchOpts.executablePath = browserExec;
 
   log(`项目：${projectDir}`);
   log(`档位：${profName} · 场景 ${scenes.length} 个 · ${renderSec.toFixed(2)}s · ${totalFrames} 帧 @${fps}fps`);

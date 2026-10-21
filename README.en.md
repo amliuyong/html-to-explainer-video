@@ -246,7 +246,8 @@ node   tests/test_page_probe_escapes.mjs   # page-evaluated source strings keep 
 node   tests/test_seek_history.mjs         # renders do not depend on seek history (skips without a browser)
 ```
 
-CI (`.github/workflows/ci.yml`) runs these on Ubuntu and Windows with Python 3.9 and 3.13.
+CI (`.github/workflows/ci.yml`) runs these on Ubuntu and Windows with Python 3.9 and 3.13 with `HX_NO_SKIP=1`:
+a missing browser, ffmpeg or numpy fails the run instead of skipping. Set the same variable to be as strict locally.
 
 ---
 

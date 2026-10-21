@@ -71,7 +71,9 @@ try:
 except ImportError:
     np = None
 ff = shutil.which("ffmpeg")
-if np is None or ff is None:
+if (np is None or ff is None) and os.environ.get("HX_NO_SKIP") == "1":   # CI：缺依赖不许静默跳过
+    fails.append("缺 numpy 或 PATH 上的 ffmpeg，而 HX_NO_SKIP=1 不许跳过 B 段")
+elif np is None or ff is None:
     print("  SKIP 缺 numpy 或 ffmpeg —— 只跑了 A 段")
 else:
     W, H, N = 960, 540, 72
