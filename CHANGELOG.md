@@ -5,6 +5,26 @@
 
 ---
 
+## [2.1.0] — 2026-10-21
+
+### 新增
+
+- **字级时间戳是插值的时提醒**（lessons #140）：阿里云百炼对某些写法不给真的字级时间戳，而是把一段（或从某个字起到段尾）
+  的时长按字数分给每个字。音频正常，`subs.py` 照样切块、`B()` 照样能定位，只是字幕和画面节拍跟着插值的时刻走，对不上吐字，
+  以前没有任何地方报。真的时间戳落在 1/32 秒的网格上（多数在 1/16 秒上），插值的不在：一个系列 13 集 673 段里，
+  不在网格上的 offset 占比 648 段 ≤ 9 %、25 段 ≥ 57 %，界线很清楚。
+  - `tts_build.py` 每合成（或从缓存取出）一段就判一次（至少 6 个字）：至少一半的 offset 不在 1/32 秒网格上（离格点 > 1 ms）
+    或有连续 8 个不在；或每个字的时长 `max − min < 0.02 s`（插值碰巧落在网格上，比如每字正好 0.25 s）；或段尾 ≥ 8 个
+    相邻字的步长相等（取整到毫秒后容差 2.5 ms）。插值从第 1、2 个字起是**整段**，从后面某个字起是**段尾**。
+    被标出来的段在 stderr 打一行 ⚠（段 id、整段 / 后几个字、建议改写这一段再重配），全部合成完再汇总一行。只是提醒，退出码不变。
+  - 只看「每字一样长」和「段尾步长相同」会漏掉一半：多字的词（「2025」「CrowdStrike」）分到整数倍的时长，
+    步长取整到毫秒后差 2 ms（0.211 / 0.213）。
+  - `audio-manifest.json` 每段新增字段 `"even_timestamps": "whole" | "tail" | null`（所以升次版本号）。下游脚本不读它，行为不变。
+  - 同一段文字重配时服务端返回逐字节相同的音频，要换一条就得改字：换个说法、调语序、拆句（改成句号分开、把开头的词挪后）。
+  - README 的质检表多了「配音时」一行。
+  - 新增回归测试 `tests/test_tts_even_timestamps.py`（真实配音的 offset / 时长样本，含多字词、步长取整、段尾、正好在网格上的四种；
+    把 `synth` 换成假的跑真的 `run()`，不联网），并接入 CI。
+
 ## [2.0.13] — 2026-10-21
 
 ### 修复
@@ -117,6 +137,7 @@
   场景边界画面整体突变判「场间硬切」WARN（阈值按实片标定：硬切 4–47，带过渡 ≤ 0.25）。`--skip-continuity` 可跳过。
 - 新增回归测试 `tests/test_lint_frames.py`、`tests/test_qc_continuity.py`，并接入 CI。
 
+[2.1.0]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.1.0
 [2.0.13]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.13
 [2.0.12]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.12
 [2.0.11]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.11

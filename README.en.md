@@ -189,6 +189,7 @@ Useful flags: `--preview 30`, `--only <scene>`, `--workers N`, `--resume`, `--sh
 
 | Stage | Command | Catches |
 |---|---|---|
+| Voice-over | `tts_build.py` | Interpolated character timestamps (off the 1/32 s grid, or every character the same length): prints a ⚠ and records `even_timestamps` (`whole` / `tail` / `null`) per manifest item. That segment's subtitles and `B()` beats won't follow the speech; reword it and re-voice |
 | Before render | `check_beats_refs.py` | `B()` calls that match no subtitle chunk |
 | | `lint_frames.py` | Remote fonts / CDNs, colour literals, wall-clock logic, CSS transitions, content in the subtitle band, missing CJK fonts, **layout reads while building** (also scans local scripts the frame loads) |
 | | `check_layout.mjs` | Overlap, out of frame, subtitle-band intrusion, near-miss alignment |

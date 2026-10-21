@@ -88,6 +88,10 @@ jobs:
       - name: Aliyun TTS regression test
         run: python tests/test_tts_ali.py
 
+      # --- 字级时间戳均分：整段每字一样长 / 段尾步长相同时提醒，manifest 记 even_timestamps（lessons #139；不联网）---
+      - name: Even timestamp warning regression test
+        run: python tests/test_tts_even_timestamps.py
+
       - name: Beats matcher regression test
         run: node tests/test_beats_norm.mjs
 
