@@ -42,8 +42,8 @@ html-video-workbuddy-driver 的 tts_edges.py 二次实战），核心五件事�
   container_duration_sec  裁完后 MP3 容器时长 → **帧时长用这个**（音画同步）
   speech_end_sec          词边界末尾（裁后坐标系）→ **末块字幕收尾用这个**
   duration_sec            词边界末尾（原始坐标系）→ 仅排查用
-  even_timestamps         "whole" / "tail" / null：字级时间戳是不是均分的（整段每字一样长 / 段尾步长相同，
-                          lessons #140）；被标出来的段打 ⚠，建议改写那一段再重配
+  even_timestamps         "whole" / "tail" / null：字级时间戳是不是插值的（不在 1/32 秒网格上、每字一样长或
+                          段尾步长相同；整段 / 从某个字起，lessons #140）；被标出来的段打 ⚠，建议改写那一段再重配
 
 用法（项目目录内）：
   python tts_build.py --project . [--provider ali|edge|volcano] [--rate +8%]
@@ -90,12 +90,16 @@ TRIM_HEAD_BACKOFF = 0.03
 TRIM_TAIL_KEEP = 0.12
 TRIM_THRESHOLD = 0.004
 
-# 字级时间戳均分（lessons #140）：阿里对某些写法不给真的时间戳，把一段（或段尾一串字）的时长平均分给每个字。
-# 真的时间戳落在 1/16 秒网格上、每字长短不一。音频没问题，只是字幕和 B() 节拍对不上吐字，下游不报错。
-EVEN_MIN_CHARS = 6        # 不到 6 个字不判：均分和真的分不开
-EVEN_WHOLE_SPREAD = 0.02  # 整段：各字时长 max − min 小于它（秒）
-EVEN_TAIL_STEPS = 8       # 段尾：至少这么多个相等的 offset 步长
-EVEN_STEP_TOL = 0.0015    # 两个步长相差小于它（秒）就算相等
+# 字级时间戳是插值的（lessons #140）：阿里对某些写法不给真的时间戳，把一段（或从某个字起到段尾）的时长按字数分给每个字。
+# 真的时间戳落在 1/32 秒网格上（多数在 1/16 秒上），插值的不在。音频没问题，只是字幕和 B() 节拍对不上吐字，下游不报错。
+EVEN_MIN_CHARS = 6        # 不到 6 个字不判：插值和真的分不开
+EVEN_GRID = 1 / 32        # 真的字级时间戳落在 1/32 秒的网格上
+EVEN_GRID_TOL = 0.001     # offset 取整到毫秒：离格点 ≤ 1 ms 算在网格上（0.438 是 0.4375）
+EVEN_OFF_SHARE = 0.5      # 至少这么多的 offset 不在网格上
+EVEN_OFF_RUN = 8          # 或者有这么多个连续不在网格上
+EVEN_WHOLE_SPREAD = 0.02  # 每字时长 max − min 小于它（秒）：每字一样长（插值碰巧落在网格上时靠它）
+EVEN_TAIL_STEPS = 8       # 段尾至少这么多个相等的 offset 步长
+EVEN_STEP_TOL = 0.0025    # 两个步长相差小于它（秒）就算相等（取整到毫秒后，同一个步长会差 2 ms）
 
 _NUMERIC_RUN = re.compile(r"[0-9]+(?:\.[0-9]+)?")
 
@@ -132,23 +136,49 @@ def _even_tail(chars: list[dict]) -> int:
     return run
 
 
-def even_timestamps(bounds: list[dict]) -> str | None:
-    """字级时间戳是不是均分的："whole"（整段）、"tail"（段尾一串字）或 None（正常，或不到 6 个字不判）。"""
+def _off_grid(offset: float) -> bool:
+    return abs(offset / EVEN_GRID - round(offset / EVEN_GRID)) * EVEN_GRID > EVEN_GRID_TOL
+
+
+def even_assess(bounds: list[dict]) -> tuple[str, int] | None:
+    """字级时间戳是不是插值的：("whole" | "tail", 插值从第几个字起)，正常（或不到 6 个字不判）时是 None。
+    插值从第 1、2 个字起算整段（插值的段第一个字常在 0.000 s，在网格上），从后面起算段尾。"""
     chars = [b for b in bounds if str(b.get("text", "")).strip()]
-    if len(chars) < EVEN_MIN_CHARS:
+    n = len(chars)
+    if n < EVEN_MIN_CHARS:
         return None
     durs = [round(float(b["duration_sec"]), 3) for b in chars]
     if max(durs) - min(durs) < EVEN_WHOLE_SPREAD:
-        return "whole"
-    return "tail" if _even_tail(chars) >= EVEN_TAIL_STEPS else None
+        return "whole", 0
+    off = [_off_grid(float(b["offset_sec"])) for b in chars]
+    best = best_start = run = 0
+    for i, f in enumerate(off):
+        run = run + 1 if f else 0
+        if run > best:
+            best, best_start = run, i - run + 1
+    if sum(off) >= EVEN_OFF_SHARE * n:
+        start = off.index(True)
+    elif best >= EVEN_OFF_RUN:
+        start = best_start
+    elif _even_tail(chars) >= EVEN_TAIL_STEPS:
+        start = n - _even_tail(chars) - 1
+    else:
+        return None
+    return ("whole" if start <= 1 else "tail"), start
+
+
+def even_timestamps(bounds: list[dict]) -> str | None:
+    """manifest 里记的那个字段："whole"（整段插值）、"tail"（从某个字起到段尾）或 None。"""
+    a = even_assess(bounds)
+    return a[0] if a else None
 
 
 def even_warning(key: str, kind: str, bounds: list[dict]) -> str:
     """被标出来的段打的那一行提醒。"""
-    chars = [b for b in bounds if str(b.get("text", "")).strip()]
-    where = (f"整段 {len(chars)} 个字一样长" if kind == "whole"
-             else f"后 {_even_tail(chars) + 1}/{len(chars)} 个字步长相同")
-    return (f"  ⚠ [{key}] 字级时间戳是均分的（{where}）：服务端没给真的时间戳，字幕和 B() 节拍会对不上吐字。"
+    n = len([b for b in bounds if str(b.get("text", "")).strip()])
+    start = (even_assess(bounds) or (kind, 0))[1]
+    where = f"整段 {n} 个字" if kind == "whole" else f"后 {n - start}/{n} 个字"
+    return (f"  ⚠ [{key}] 字级时间戳是插值的（{where}）：服务端没给真的时间戳，字幕和 B() 节拍会对不上吐字。"
             f"建议改写这一段（换个说法、调语序、拆句）再重配")
 
 
@@ -475,7 +505,7 @@ async def run(args) -> int:
     print(f"[tts] 容器合计 {total:.2f}s（未含段间 gap；timeline_build.py 会加）")
     even = [r["id"] for r in results if r["even_timestamps"]]
     if even:
-        print(f"[tts] ⚠ {len(even)} 段的字级时间戳是均分的：{'、'.join(even)}（见上；manifest 的 even_timestamps）",
+        print(f"[tts] ⚠ {len(even)} 段的字级时间戳是插值的：{'、'.join(even)}（见上；manifest 的 even_timestamps）",
               file=sys.stderr)
     return 0
 

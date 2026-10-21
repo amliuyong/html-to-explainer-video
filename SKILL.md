@@ -516,7 +516,7 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 | `scripts/tts_setup.py` | **配音方案向导**：选阿里/edge/火山 → 缺密钥则停下（阿里 `fill_ali_key`；火山生成 `tts.env` 模板后 `fill_env`）→ 测连接 → 选音色 → 写回 project.json。输出 `NEXT_ACTION=…` 供 agent 判断下一步 |
 | `scripts/tts_ali.py` | **阿里云百炼 qwen-audio-3.1-tts-flash 接口包**（默认引擎）：唯一读 `~/ali_tts/api_key.csv` 的地方；SSE 多行 data 拼接、按 code 判错、时间戳映射回原文；`--check` / `--voices` / `--synth`。密钥不回显、异常脱敏（`_redact`） |
 | `scripts/tts_volcano.py` | **火山引擎语音合成 2.0 接口包**：唯一读 `tts.env` 的地方；`--check` / `--voices` / `--synth`。密钥不回显、异常脱敏（`_redact`） |
-| `scripts/tts_build.py` | 配音合成：阿里云百炼（默认）/ edge-tts / 火山引擎（`--provider`）；缓存/硬超时/退避重试/裁静音，manifest 写两级时长。三引擎 manifest 结构一致；字级时间戳均分时打 ⚠、记 `even_timestamps`（lessons #140） |
+| `scripts/tts_build.py` | 配音合成：阿里云百炼（默认）/ edge-tts / 火山引擎（`--provider`）；缓存/硬超时/退避重试/裁静音，manifest 写两级时长。三引擎 manifest 结构一致；字级时间戳是插值的（不在 1/32 秒网格上）时打 ⚠、记 `even_timestamps`（lessons #140） |
 | `scripts/timeline_build.py` | layout.json 全局轴 + narration-full.mp3（每段按 layout 槽位补齐到采样，gap 显式插入；总长差 > 1 帧即失败） |
 | `scripts/subs.py` | 字幕三出口（subs.json / srt+vtt / 画面内层由渲染器注入）+ beats.js 节拍器 |
 | `scripts/check_beats_refs.py` | **节拍引用构建期校验**：把每帧的 `B()`/`Be()` 全抓出来和自己的 beats 表对一遍。**`B()` 是前缀匹配**（`bt===t ‖ bt.startsWith(t) ‖ t.startsWith(bt)`，归一化不去 `《》「」`），取中间一段会抛错 —— 而那个错**只在渲到那一帧时才炸**（前面几百帧白渲）。本脚本把它提前到构建期：失配打印**该帧可用块列表**，退出码 1，秒级 |
