@@ -367,7 +367,7 @@ OPENER_VARIANTS = [
 
 
 def pick_opener_variant(seed_text: str) -> str:
-    h = hashlib.sha1(seed_text.encode("utf-8")).hexdigest()
+    h = hashlib.sha1(seed_text.encode("utf-8"), usedforsecurity=False).hexdigest()
     return OPENER_VARIANTS[int(h[:8], 16) % len(OPENER_VARIANTS)]
 
 
@@ -527,7 +527,7 @@ def build_plan(project, args):
         band = args.band
         top = ranked[0][1]
         tied = [r for r in ranked if top - r[1] <= band]
-        pick = tied[int(hashlib.sha1(f"{seed_text}|{s['id']}|primary".encode()).hexdigest()[:8], 16) % len(tied)]
+        pick = tied[int(hashlib.sha1(f"{seed_text}|{s['id']}|primary".encode(), usedforsecurity=False).hexdigest()[:8], 16) % len(tied)]
         if len(tied) > 1:
             pick_why = [f"容差带内 {len(tied)} 个候选（≤{band:.0f} 分差），"
                         f"按主题哈希选中（同题材换期=换画面语法）"] + pick[2]

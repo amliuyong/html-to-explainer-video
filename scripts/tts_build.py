@@ -199,7 +199,7 @@ def _boundary_mode(provider: str) -> str:
 def cache_paths(text, voice, rate, volume, pitch, cache_dir, trim, provider="edge"):
     sig = (f"{provider}|{voice}|{rate}|{volume}|{pitch}|"
            f"{_boundary_mode(provider)}|{int(trim)}|{text}")
-    h = hashlib.sha1(sig.encode("utf-8")).hexdigest()[:16]
+    h = hashlib.sha1(sig.encode("utf-8"), usedforsecurity=False).hexdigest()[:16]
     d = os.path.join(cache_dir, "trim") if trim else cache_dir
     os.makedirs(d, exist_ok=True)
     return os.path.join(d, h + ".mp3"), os.path.join(d, h + ".json")
