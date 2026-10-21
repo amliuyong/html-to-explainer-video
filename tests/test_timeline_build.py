@@ -10,7 +10,13 @@ A 段只测纯函数（零依赖）；B 段用 numpy + ffmpeg 合成一个小工
 每段是一段静音加一声 beep（段内偏移已知，各段频率不同），按 tts_build 的命令编码成 MP3。
 断言每声 beep 都落在 start_sec + 段内偏移的 ±10 ms 内，总长与 layout 差不过 1 帧；
 再按旧办法（解码后直接 concat）拼一遍，断言它过不了同一个检查 —— 样本有鉴别力。
-缺 numpy 或 ffmpeg 就跳过 B 段，不算失败。失败即以非零码退出。
+
+C 段守 lessons #141：2.0.9–2.1.0 的拼法 concat 完直接进 libmp3lame，ffmpeg（6.1 起）替编码器按 1152 切帧时，
+最后一帧可能是一截不拷贝、只挪了指针的尾巴，缓冲比 libmp3lame 要的少 4 个采样 →「inadequate AVFrame plane padding」。
+合成一个两段的工程，让末段补的静音正好切出这样的尾巴：旧拼法加 `-cpuflags 0`（把对齐降到 8 字节，x86 上也能复现）
+必须报这个错，新拼法同样加 `-cpuflags 0` 必须过；真的 timeline_build.py 要过（aarch64 等 16 字节对齐的机器上，
+不加 -cpuflags 这就是原样复现）；重新分帧前后 concat 出来的 PCM 逐字节相同。
+缺 numpy 或 ffmpeg 就跳过 B、C 段，不算失败。失败即以非零码退出。
 """
 from __future__ import annotations
 
@@ -61,6 +67,10 @@ check("相邻两段舍入撞上 1 个采样时，上一段让出来、不重叠"
                        "b": {"start_sec": 0.00001, "duration_sec": 1.0}}, ["a", "b"], 44100)[0], (0, 0))
 check("差 1 帧以内不报", tb.length_problem(10.02, 10.0, 30), None)
 check("差超过 1 帧要报", tb.length_problem(9.96, 10.0, 30) is not None, True)
+_cmd = tb.concat_cmd("ffmpeg", ["a.mp3", "b.mp3"], [(100, 50), (200, 0)], "out.mp3")
+check("concat 完先切成每帧 1152 个采样（p=0 不补尾）再进 libmp3lame（lessons #141）",
+      (_cmd[_cmd.index("-filter_complex") + 1].endswith("concat=n=3:v=0:a=1,asetnsamples=n=1152:p=0[out]"),
+       _cmd[_cmd.index("-c:a") + 1]), (True, "libmp3lame"))
 
 # ---------------- B. 端到端（numpy + ffmpeg） ----------------
 print("B. timeline_build 端到端")
@@ -176,6 +186,111 @@ else:
                                 capture_output=True, text=True, errors="replace")
             check("重跑一遍：layout.json 逐字节不变",
                   p2.returncode == 0 and open(os.path.join(d, "layout.json"), "rb").read() == first, True)
+
+    # ---------------- C. 末帧的缓冲够不够 libmp3lame（lessons #141） ----------------
+    print("C. 最后一帧不是一截缓冲不够的尾巴")
+    OUT_SR = tb.SR
+
+    def tail_too_short(n_total, n_pad, align=4):
+        """2.0.9–2.1.0 的拼法会不会把一截缓冲不够的尾巴递给 libmp3lame。
+
+        末段补的静音是 apad 一次分配的一帧（≤ 4096 个采样，缓冲按 32 个采样取整）。ffmpeg 按 1152 切帧，
+        这一帧前面的采样被拷走，剩下 r = n_total mod 1152 个时不拷贝、只挪指针 —— 前提是挪过的字节数是
+        av_cpu_max_align 的倍数（align 是换算成采样数的值，16 字节 = 4 个）。剩下的缓冲是
+        ceil32(n_pad) − (n_pad − r) 个采样，libmp3lame 要 ceil8(r) 个。
+        """
+        r = n_total % 1152
+        off = n_pad - r
+        if not 0 < r < n_pad <= 4096 or off % align:
+            return False
+        return -(-n_pad // 32) * 32 - off < -(-r // 8) * 8
+
+    def old_graph(slots):
+        """2.0.9–2.1.0 的拼法：concat 完直接进编码器。"""
+        fl, lb = [], []
+        for i, (n_seg, n_gap) in enumerate(slots):
+            fl.append(f"[{i}:a]aresample={OUT_SR},apad=whole_len={n_seg},atrim=end_sample={n_seg}[a{i}]")
+            lb.append(f"[a{i}]")
+            if n_gap > 0:
+                fl.append(f"anullsrc=channel_layout=mono:sample_rate={OUT_SR},atrim=end_sample={n_gap}[g{i}]")
+                lb.append(f"[g{i}]")
+        return ";".join(fl) + ";" + "".join(lb) + f"concat=n={len(lb)}:v=0:a=1[out]"
+
+    with tempfile.TemporaryDirectory() as d:
+        os.makedirs(os.path.join(d, "audio"))
+        ids, parts, dec, cont = ["t0", "t1"], [], [], []
+        for i, length in enumerate([1.234, 0.987]):
+            x = 0.3 * np.sin(2 * np.pi * (300 + 200 * i) * np.arange(int(round(length * SR))) / SR)
+            mp3 = os.path.join(d, "audio", f"{ids[i]}.mp3")
+            run("-f", "f32le", "-ac", "1", "-ar", str(SR), "-i", "-", "-c:a", "libmp3lame", "-b:a", "128k", mp3,
+                data=x.astype("<f4").tobytes())
+            parts.append(mp3)
+            dec.append(len(run("-i", mp3, "-af", f"aresample={OUT_SR}", "-f", "f32le", "-")) // 4)
+            cont.append(container(mp3))
+
+        # 末段的容器时长取比解码长 20–50 ms 的一个毫秒值、段间 gap 取 0.30–0.45 s（timeline_build 只读 manifest），
+        # 找一组让旧拼法切出缓冲不够的尾巴的
+        pick = None
+        lo = int(dec[1] * 1000 / OUT_SR) + 21
+        for c1_ms in range(lo, lo + 29):
+            for gap_ms in range(300, 451):
+                lay = {"t0": {"start_sec": 0.0, "duration_sec": round(cont[0], 3)},
+                       "t1": {"start_sec": round(round(cont[0], 3) + gap_ms / 1000, 3), "duration_sec": c1_ms / 1000}}
+                slots = tb.slot_samples(lay, ids)
+                n_total = sum(a + b for a, b in slots)
+                if tail_too_short(n_total, slots[-1][0] - dec[1]):
+                    pick = (c1_ms, gap_ms, slots, n_total)
+                    break
+            if pick:
+                break
+        check("找得到能复现的样本（末段比解码长 20–50 ms，旧拼法会切出缓冲不够的尾巴）", pick is not None, True)
+        if pick:
+            c1_ms, gap_ms, slots, n_total = pick
+            print(f"      末段补 {slots[-1][0] - dec[1]} 个采样静音，总 {n_total} 个采样（末帧 {n_total % 1152}）")
+            json.dump({"order": ids, "gap": gap_ms / 1000, "fps": FPS}, open(os.path.join(d, "project.json"), "w"))
+            json.dump({"items": [{"id": "t0", "path": parts[0], "duration_sec": dec[0] / OUT_SR,
+                                  "container_duration_sec": cont[0]},
+                                 {"id": "t1", "path": parts[1], "duration_sec": dec[1] / OUT_SR,
+                                  "container_duration_sec": c1_ms / 1000}]},
+                      open(os.path.join(d, "audio-manifest.json"), "w"))
+            ins = [a for mp3 in parts for a in ("-i", mp3)]
+
+            # 反向验证：-cpuflags 0 把 av_cpu_max_align 降到 8 字节，x86（AVX 是 32 字节，从来切不出这种尾巴）上也复现
+            p = subprocess.run([ff, "-hide_banner", "-loglevel", "error", "-y", "-cpuflags", "0", *ins,
+                                "-filter_complex", old_graph(slots), "-map", "[out]",
+                                "-c:a", "libmp3lame", "-b:a", "128k", os.path.join(d, "old.mp3")],
+                               capture_output=True, text=True, errors="replace")
+            if p.returncode != 0 and "inadequate AVFrame plane padding" in p.stderr:
+                check("反向验证：旧拼法（-cpuflags 0）报 inadequate AVFrame plane padding", True, True)
+            elif os.environ.get("HX_NO_SKIP") == "1":
+                fails.append("反向验证：旧拼法在这个 ffmpeg 上没报 inadequate AVFrame plane padding —— 样本没有鉴别力"
+                             f"（退出码 {p.returncode}）。ffmpeg 6.0 及以前不替编码器切帧；若是 FFmpeg 修了，"
+                             "这条反向验证和 lessons #141 要一起改")
+            else:
+                print("  SKIP 反向验证：这个 ffmpeg 不替编码器切帧（6.0 及以前），旧拼法在这里本来就不出错")
+
+            cmd = tb.concat_cmd(ff, parts, slots, os.path.join(d, "new.mp3"))
+            cmd[1:1] = ["-cpuflags", "0"]
+            p = subprocess.run(cmd, capture_output=True, text=True, errors="replace")
+            check("新拼法（同样 -cpuflags 0）退出码 0", p.returncode, 0)
+            if p.returncode != 0:
+                fails.append("新拼法输出：" + p.stderr[-600:])
+
+            p = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "timeline_build.py"), "--project", d],
+                               capture_output=True, text=True, errors="replace")
+            check("timeline_build 在这份样本上退出码 0", p.returncode, 0)
+            if p.returncode != 0:
+                fails.append("timeline_build 输出：" + (p.stdout + p.stderr)[-500:])
+            else:
+                got = tb.decoded_seconds(os.path.join(d, "audio", "narration-full.mp3"), ff)
+                print(f"      音轨解码 {got * OUT_SR:.0f} 个采样，槽位合计 {n_total}")
+                check("音轨解码总长与槽位合计差不过 1 帧", abs(got - n_total / OUT_SR) <= 1 / FPS, True)
+
+            fc_new = cmd[cmd.index("-filter_complex") + 1]
+            pcm_old = run(*ins, "-filter_complex", old_graph(slots), "-map", "[out]", "-f", "f32le", "-")
+            pcm_new = run(*ins, "-filter_complex", fc_new, "-map", "[out]", "-f", "f32le", "-")
+            check("重新分帧不动采样：concat 出来的 PCM 与旧拼法逐字节相同，正好是槽位合计的采样数",
+                  (pcm_new == pcm_old, len(pcm_new) // 4), (True, n_total))
 
 if fails:
     print("\n✗ 失败：")

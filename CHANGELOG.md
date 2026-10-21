@@ -5,6 +5,25 @@
 
 ---
 
+## [2.1.1] — 2026-10-21
+
+### 修复
+
+- **`timeline_build.py` 拼音轨失败：`[libmp3lame] inadequate AVFrame plane padding`**（lessons #141）：2.0.9 起拼音轨时
+  concat 完直接交给 libmp3lame。ffmpeg 6.1 起由命令行工具替编码器按 1152 个采样切帧：一帧的前一部分拷走，剩下的尾巴不拷贝，
+  只挪数据指针，linesize 跟着减小。最后一帧碰上这样一截尾巴（末段补的静音帧）时，缓冲比 libmp3lame 要的
+  `FFALIGN(nb_samples, 8)` 个采样少 4 个，编码器拒收，`narration-full.mp3` 和 `layout.json` 都不产出。
+  只在 `av_cpu_max_align()` 为 16 字节的机器上出现（aarch64 / Apple Silicon、只有 SSE 的 x86）。AVX 的 x86 是 32 字节，
+  切不出这种尾巴，所以 CI 一直是绿的。碰不碰上取决于总采样数和末段补了多少静音，一集约 1/64。
+  实例：一集 48 段在 aarch64 上失败，后来重配了 4 段、总长变了，同一份脚本又能过。
+  - concat 之后加 `asetnsamples=n=1152:p=0`：交给编码器的每帧正好 1152 个采样，ffmpeg 不再切帧。`p=0` 不补尾，采样一个不多、一个不少。
+    三集真实配音（48 / 51 / 53 段）上，`layout.json` 和 `narration-full.mp3` 与 2.1.0 拼出来的逐字节相同，已出片的项目不用重跑。
+  - 拼音轨的 ffmpeg 命令抽成 `concat_cmd()`。
+  - `tests/test_timeline_build.py` 新增 C 段：合成两段的工程，让末段补的静音正好切出缓冲不够的尾巴。旧拼法加 `-cpuflags 0`
+    （对齐降到 8 字节，x86 上也能复现）必须报这个错，新拼法同样加 `-cpuflags 0` 必须过；真的 `timeline_build.py` 要过；
+    重新分帧前后 concat 出来的 PCM 逐字节相同。A 段加一条：concat 后面是 `asetnsamples=n=1152:p=0`。
+    去掉这一处，aarch64 上 3 项失败，x86 上 2 项失败（x86 上真的脚本本来就能过）。
+
 ## [2.1.0] — 2026-10-21
 
 ### 新增
@@ -137,6 +156,7 @@
   场景边界画面整体突变判「场间硬切」WARN（阈值按实片标定：硬切 4–47，带过渡 ≤ 0.25）。`--skip-continuity` 可跳过。
 - 新增回归测试 `tests/test_lint_frames.py`、`tests/test_qc_continuity.py`，并接入 CI。
 
+[2.1.1]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.1.1
 [2.1.0]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.1.0
 [2.0.13]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.13
 [2.0.12]: https://github.com/amliuyong/html-to-explainer-video/releases/tag/v2.0.12
