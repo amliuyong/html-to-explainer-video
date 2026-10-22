@@ -4,11 +4,12 @@
 
 守的是一条不变式：
 
-  去句读标点，但**小数点不是标点**。
+  去句读标点，但**词里的点不是标点**：点的左右都是数字或 ASCII 字母时留着
+  （2.4% / 1.2.3 / ASN.1 / X.509 / v1.5 / node.js / S3.Select，lessons #88、#143）。
 
 五个出口共用这一个定义 —— 屏幕字幕、SRT/VTT、B() 节拍匹配、火山长文本切句、
 以及给下游读的 subs.json。任何一处把小数点当标点删掉，屏幕上就会出现
-「念 2.4%、写 24%」这种差一个数量级的假数字；这类错不会报错，只会静静地骗人。
+「念 2.4%、写 24%」这种差一个数量级的假数字，或者「ASN.1」写成「ASN1」；这类错不会报错，只会静静地骗人。
 
 失败即以非零码退出（CI 直接吃退出码）。
 """
@@ -16,6 +17,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -55,6 +57,19 @@ check("逗号仍删（用户要求）", subs.clean_sub_text("1,234万"), "1234�
 check("冒号仍删（用户要求）", subs.clean_sub_text("12:30 开播"), "1230开播")
 check("句号仍删", subs.clean_sub_text("甲、乙。"), "甲、乙")
 check("全角数字也认", subs.clean_sub_text("涨２.４％"), "涨２.４％")
+# ↓ 词里的点（lessons #143）：左右都是数字或 ASCII 字母就留着。2.1.2 只认数字，05-2 的「A S N.1」上屏成了「ASN1」
+check("字母.数字（ASN.1，中文块去空格）", subs.clean_sub_text("1984 年的 A S N.1 就靠标签号演化"), "1984年的ASN.1就靠标签号演化")
+check("字母.数字（X.509）", subs.clean_sub_text("X.509 证书，"), "X.509证书")
+check("字母+数字.数字（v1.5）", subs.clean_sub_text("升到 v1.5。"), "升到v1.5")
+check("字母.字母（node.js）", subs.clean_sub_text("用 node.js 写，"), "用node.js写")
+check("数字.字母（S3.Select）", subs.clean_sub_text("S3.Select 只读要的列"), "S3.Select只读要的列")
+check("英文块里的词内点", subs.clean_sub_text("Node.js and X.509 certs.", "en"), "Node.js and X.509 certs")
+check("词末的句点仍删", subs.clean_sub_text("用的是 node.js."), "用的是node.js")
+check("字母后接空格的点仍删", subs.clean_sub_text("e.g. 这样"), "e.g这样")
+check("中文夹着的点仍删", subs.clean_sub_text("甲.乙"), "甲乙")
+check("中文.数字仍删（前导小数点）", subs.clean_sub_text("版本.5"), "版本5")
+# 逗号照删（lessons #88 用户拍板）：19 集交付的字幕里没有一处「1,000」写法，数字都写成 1000 / 32768
+check("字母,字母 的逗号也删", subs.clean_sub_text("a,b"), "ab")
 
 # ---- 对齐用的去标点：同一套规则 ----
 print("对齐用 _PUNCT_RE")
@@ -66,8 +81,12 @@ check("逗号被吃", subs._PUNCT_RE.sub("", "1,234"), "1234")
 check("中英混排（空格也归一化）", subs._PUNCT_RE.sub("", "a. 2.4% b"), "a2.4%b")
 # ↓ 两条专门钉住「断言写在点之前还是之后」：写反了它们会静默通过。
 # `X(?<!\d)` 断言的是 X 右边的字符，所以「点的左边是数字」根本管不住。
-check("点左边非数字 → 删", subs._PUNCT_RE.sub("", "a.2"), "a2")
-check("点右边非数字 → 删", subs._PUNCT_RE.sub("", "2.a"), "2a")
+# （2.1.3 起字母也算词里的字，「a.2」要留，所以用中文当「不是词里的字」）
+check("点左边是中文 → 删", subs._PUNCT_RE.sub("", "甲.2"), "甲2")
+check("点右边是中文 → 删", subs._PUNCT_RE.sub("", "2.甲"), "2甲")
+check("字母.数字 → 留（ASN.1）", subs._PUNCT_RE.sub("", "ASN.1"), "ASN.1")
+check("字母.字母 → 留（node.js）", subs._PUNCT_RE.sub("", "用node.js。"), "用node.js")
+check("词末的点 → 删", subs._PUNCT_RE.sub("", "X.509."), "X.509")
 check("两点夹数字 → 留", subs._PUNCT_RE.sub("", "2.4"), "2.4")
 check("点多侧数字（版本号）→ 全留", subs._PUNCT_RE.sub("", "1.2.3"), "1.2.3")
 
@@ -78,13 +97,41 @@ parts = tts_volcano.split_long_text(long_text, limit=40)
 check("切分后无碎片以数字点收尾", any(p.endswith("2.") for p in parts), False)
 check("切分不丢字（拼回等于原文）", "".join(parts), long_text)
 check("短文本原样返回", tts_volcano.split_long_text("2.4%", limit=40), ["2.4%"])
+tok_text = "证书用的是X.509，这一段的文字故意写得很长很长很长很长" * 4
+tok_parts = tts_volcano.split_long_text(tok_text, limit=30)
+check("不在 X.509 的点处切（字母.数字）", any(p.endswith("X.") for p in tok_parts), False)
+check("切分不丢字（X.509）", "".join(tok_parts), tok_text)
 
 # ---- 节拍模板：B() 的归一化不削小数点 ----
 print("beats.js 模板自洽")
 beats_tmpl = subs.BEATS_TMPL
 check("模板含 norm()", "function norm(" in beats_tmpl, True)
-check("norm 保护数字间小数点", "(\\d)\\.(\\d)" in beats_tmpl, True)
+check("norm 保护词里的点（左右是数字或字母）", "([0-9A-Za-z])\\.(?=[0-9A-Za-z])" in beats_tmpl, True)
 check("模板仍会丢弃逗号冒号", ",.!?;:|" in beats_tmpl, True)
+
+
+def _norm_src(text):
+    m = re.search(r"function norm\(s\) \{.*?\n  \}", text, re.S)
+    return m.group(0) if m else None
+
+
+# lessons #88：B() 的归一化有两份模板（subs.py 与 new_project.py 的占位节拍），改一份漏一份。
+# 两份都是普通三引号字符串，转义层数一样，所以直接比源码
+def _src(rel):
+    return open(os.path.join(ROOT, rel), encoding="utf-8").read()
+
+
+check("new_project.py 占位节拍的 norm() 与 subs.py 一致",
+      _norm_src(_src("scripts/new_project.py")), _norm_src(_src("scripts/subs.py")))
+
+# ---- 构建期校验 check_beats_refs.norm：与 beats.js 的 norm() 同规则 ----
+print("check_beats_refs.norm")
+cbr = _load("check_beats_refs", "scripts/check_beats_refs.py")
+check("小数点留", cbr.norm("涨了2.4%，"), "涨了2.4%")
+check("版本号的两个点都留", cbr.norm("升到1.2.3之后"), "升到1.2.3之后")
+check("ASN.1 留点", cbr.norm("ASN.1 很复杂，"), "ASN.1很复杂")
+check("X.509 与 X509 不归一成同一个", cbr.norm("X.509证书") != cbr.norm("X509证书"), True)
+check("句末的点照删", cbr.norm("用node.js."), "用node.js")
 
 if fails:
     print(f"\n失败 {len(fails)} 项：\n")
