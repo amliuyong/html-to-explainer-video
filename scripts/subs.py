@@ -13,7 +13,10 @@ subs.py —— 字幕三出口 + 节拍器 beats.js。
      （speech_end_sec，裁后坐标系）—— 混用会「字幕过了语音还没过」
   ④ 停留重分配：按真实语速比例 + 每块 ≥0.6s（water-filling）
   ⑤ 屏幕文本去句读标点（标点只驱动 TTS 停顿，不上画面）；
-     **唯独数字内部的小数点要留** —— 2.4% 削成 24% 是差一个数量级的假数字
+     **唯独词里的点要留**（左右都是数字或 ASCII 字母）—— 2.4% 削成 24% 是差一个数量级的假数字，
+     ASN.1 / X.509 削成 ASN1 / X509 是另一个名字
+  ⑥ 块首那一项要是「停顿 + 下一个英文词的首字母」（阿里：「：|p」+「andas」），块从这一项的结尾起，
+     不从停顿开头起（lessons #144）
 
 【本技能新增】beats.js 节拍器 —— 把每块的本地秒写进 frames/<id>.beats.js，
 场景 HTML 里用 B('文本') 拿到该词的起播秒，画面节拍直接对齐吐字节拍。
@@ -159,37 +162,86 @@ def auto_split(text: str, budget=None):
     return out or [text]
 
 
-def is_decimal_point(s: str, i: int) -> bool:
-    """s[i] 是不是「数字内部的小数点」？左右各需一个数字（2.4 / 1.5 / 3.14）。
+# 词里的字：数字（含全角）或 ASCII 字母。点的左右都是它，这个点就是词的一部分，不是句读。
+_TOKEN_CH = re.compile(r'[\dA-Za-z]')
 
-    去标点是为了 TTS 不被截断、画面不被句读打断；但小数点不是句读，它是数字的
-    一部分 —— 删掉它「2.4%」会变成「24%」，屏幕文本就撒谎了（数字差 10 倍）。
+
+def is_token_dot(s: str, i: int) -> bool:
+    """s[i] 是不是「词里的点」？左右各需一个数字或 ASCII 字母
+    （2.4 / 1.2.3 / ASN.1 / X.509 / v1.5 / node.js / S3.Select）。
+
+    去标点是为了 TTS 不被截断、画面不被句读打断；但词里的点不是句读，它是数字或名字的
+    一部分 —— 删掉它「2.4%」会变成「24%」（数字差 10 倍），「X.509」会变成「X509」，
+    屏幕文本就撒谎了（lessons #88、#143）。句末、缩写末尾（「e.g.」的第二个点）、前导「.5」照删。
     """
-    if i < 0 or i >= len(s) or s[i] != '.':
+    if i <= 0 or i >= len(s) - 1 or s[i] != '.':
         return False
-    if i == 0 or i == len(s) - 1:
-        return False
-    return s[i - 1].isdigit() and s[i + 1].isdigit()
+    return bool(_TOKEN_CH.match(s[i - 1]) and _TOKEN_CH.match(s[i + 1]))
 
 
-# 小数点两侧都是数字时不能删；其余位置（句末、缩略、省略）照删。
+# 词里的点（左右都是数字或 ASCII 字母）不能删；其余位置（句末、缩略、省略）照删。
 # 注意 `.` 不能留在字符类里，否则一定被吃掉。
 # 注意断言的**位置**：`X(?<!\d)` 断言的是 X 右边的字符，不是左边。要判「点的左边」
 # 必须把断言写在点之前（写反了不会报错，只会静默失效）。
-_PUNCT_RE = re.compile(r'[\s，。、！？：；“”（）,!?;:()\-—…·|]|(?<!\d)\.|(?<=\d)\.(?!\d)')
+_PUNCT_RE = re.compile(r'[\s，。、！？：；“”（）,!?;:()\-—…·|]|(?<![\dA-Za-z])\.|\.(?![\dA-Za-z])')
+
+# 停顿被标成下一个英文词的首字母（lessons #144）。标点后面紧跟英文词时，阿里常把停顿并进那个词的
+# 首字母，给成一项：「：|p」0.375 s，后面一项「andas」（2.1.2 起送出去的文本没有 `|`，就是「：p」）。
+# 块起点要是取这一项的开头，就落在停顿开头，比吐字早 0.3–0.7 s。
+# 一个系列 19 集里这样的项有 11 个，都 ≥ 0.31 s；不盖停顿的首字母项最长 0.19 s（插值的段每字一样长，
+# 到过 0.27 s / 0.31 s）。音频里开口比「andas」那一项的开头晚 0.12 s（中位数），和普通块起点比开口早的量
+# （0.12 s，3148 块）一样 —— 字母本身的时长已经算进停顿那一项了，所以块起点就取这一项的结尾，不再往前减。
+PAUSE_LETTER_MIN_SEC = 0.3
+_ONE_LETTER = re.compile(r'[A-Za-z]')
+_LOWER = re.compile(r'[a-z]')
+
+
+def _t_of(w):
+    if 't' in w:
+        return float(w['t'])
+    return float(w.get('offset_sec', 0.0))
+
+
+def _word_onset_after_pause(words, k, wts, at, i):
+    """块首字 tts_text[i] 由第 k 项给出。这一项要是「停顿 + 英文词的首字母」，返回词真正开口的秒
+    （原始坐标系：这一项的结尾，不晚于下一项的开头）；不是就返回 None（lessons #144）。
+
+    五个条件都要满足，缺一个就照旧用这一项的开头：
+      - 这一项去掉标点后只剩一个 ASCII 字母，就是块首字；
+      - 下一项紧接在它后面（tts_text 里从 i+1 起），以小写字母开头 —— 同一个词的后半截。
+        大写开头的是拼读的字母（「；|B」+「SO」、「O」+「L」），一个字母一个音节，本来就长；
+      - 这一项 ≥ PAUSE_LETTER_MIN_SEC；
+      - 它从前一项的结尾开始（空档 < 0.03 s）。停顿在前一项后面的空档里时，这一项从吐字开始；
+      - 它和前一项不一样长。插值的段每字一样长（lessons #140），长不说明有停顿。
+    """
+    if k is None or k == 0 or k + 1 >= len(words):
+        return None
+    if not _ONE_LETTER.fullmatch(wts[k]) or at.get(k) != i:
+        return None
+    if at.get(k + 1) != i + 1 or not _LOWER.match(wts[k + 1]):
+        return None
+    w, prev = words[k], words[k - 1]
+    dur, prev_dur = w.get('duration_sec'), prev.get('duration_sec')
+    if dur is None or prev_dur is None or float(dur) < PAUSE_LETTER_MIN_SEC:
+        return None
+    off = _t_of(w)
+    if off - (_t_of(prev) + float(prev_dur)) >= 0.03 or abs(float(dur) - float(prev_dur)) < 0.005:
+        return None
+    return min(off + float(dur), _t_of(words[k + 1]))
 
 
 def chunk_starts(tts_text, chunks, words, lead_cut):
-    """每块首字对齐到词边界秒（词边界为原始坐标系 → 减 lead_cut 平移）。"""
-    def _t_of(w):
-        if 't' in w:
-            return float(w['t'])
-        return float(w.get('offset_sec', 0.0))
+    """每块首字对齐到词边界秒（词边界为原始坐标系 → 减 lead_cut 平移）。
 
+    块首那一项要是盖住了停顿的英文首字母（「：|p」+「andas」），块从这一项的结尾起（lessons #144）。
+    """
     char_t = [None] * len(tts_text)
+    char_k = [None] * len(tts_text)      # 每个字的时间戳来自第几项
+    wts = [_PUNCT_RE.sub('', w.get('text', '')) for w in words]
+    at = {}                              # 第几项 → 它在 tts_text 里的起点
     cur = 0
-    for w in words:
-        wt = _PUNCT_RE.sub('', w.get('text', ''))
+    for k, w in enumerate(words):
+        wt = wts[k]
         if not wt:
             continue
         p = tts_text.find(wt, cur)
@@ -198,8 +250,10 @@ def chunk_starts(tts_text, chunks, words, lead_cut):
             if p < 0:
                 continue
         t = _t_of(w) - lead_cut
+        at[k] = p
         for i in range(p, min(len(tts_text), p + len(wt))):
             char_t[i] = t
+            char_k[i] = k
         cur = p + len(wt)
 
     starts, pos = [], 0
@@ -207,7 +261,11 @@ def chunk_starts(tts_text, chunks, words, lead_cut):
         st = None
         for i in range(pos, min(len(tts_text), pos + len(c))):
             if char_t[i] is not None:
-                st = char_t[i]; break
+                st = char_t[i]
+                onset = _word_onset_after_pause(words, char_k[i], wts, at, i)
+                if onset is not None:
+                    st = onset - lead_cut
+                break
         starts.append(st)
         pos += len(c)
 
@@ -231,8 +289,8 @@ _DROP_PUNCT = set('，。！？；：,.!?;:、·|｜')
 def clean_sub_text(s: str, lang: str = 'zh') -> str:
     """屏幕文本：去句读标点（标点只驱动 TTS 停顿，不上画面）。
 
-    唯一例外：数字内部的小数点（2.4%）保留 —— 它属于数字本身，
-    删掉会让画面显示的数字与念出来的差一个数量级。
+    唯一例外：词里的点（2.4% / ASN.1 / X.509，左右都是数字或 ASCII 字母）保留 —— 它属于数字或名字本身，
+    删掉会让画面显示的数字与念出来的差一个数量级，或者写成另一个名字。逗号照删（lessons #88 用户拍板）。
     """
     out = []
     for i, ch in enumerate(s):
@@ -243,7 +301,7 @@ def clean_sub_text(s: str, lang: str = 'zh') -> str:
                 out.append(' ')
             continue
         if ch in _DROP_PUNCT:
-            if is_decimal_point(s, i):
+            if is_token_dot(s, i):
                 out.append(ch)
             continue
         out.append(ch)
@@ -297,7 +355,7 @@ BEATS_TMPL = """/* 自动生成（subs.py）——解说词/配音改动后重�
  *   也就是 text 必须是**块文本的开头**（唯一推荐用法），或与它整体一致。
  *   **取中间一段会抛错**：
  *   块文本「一位父亲写下《被网游毁掉的孩子》」→ B('一位父亲写下') ✓ / B('被网游毁掉的孩子') ✗
- *   归一化会去 ，。、！？；：,.!?;:| 与空白（保留数字内小数点），但**不去《》「」**。
+ *   归一化会去 ，。、！？；：,.!?;:| 与空白（保留词里的点：2.4% / X.509），但**不去《》「」**。
  *   拿不准就抄块文本的前 6–10 个字。构建期先跑 scripts/check_beats_refs.py 全量校验。
  * __SEG_INFO__：{id, duration, speech_end, tail, gap, chapter_start, chapter_end} ——
  * duration 对帧长、speech_end 是语音真实结束（按它排主体动画）；
@@ -310,8 +368,9 @@ window.__SEG__ = __SEG_DATA__;
 (function () {
   var B = window.__BEATS__;
   function norm(s) {
-    // 小数点不是标点：先护住「数字.数字」，去完标点再还原，否则 B('2.4%') 会被削成 '24%'。
-    return String(s || '').replace(/(\\d)\\.(\\d)/g, '$1\\u0000$2')
+    // 词里的点不是标点：先护住左右都是数字或字母的点（2.4% / 1.2.3 / X.509），去完标点再还原，
+    // 否则 B('2.4%') 会被削成 '24%'、B('X.509') 撞上 'X509'。用前瞻，连着的点（1.2.3）才都护得住。
+    return String(s || '').replace(/([0-9A-Za-z])\\.(?=[0-9A-Za-z])/g, '$1\\u0000')
       .replace(/[\\s，。、！？；：,.!?;:|]/g, '')
       .replace(/\\u0000/g, '.');
   }

@@ -299,13 +299,13 @@ def _opener() -> urllib.request.OpenerDirector:
 def split_long_text(text: str, limit: int = MAX_TEXT_LEN) -> list[str]:
     """按标点切分到 <=limit 字，保证不把一个词从中间劈开。
 
-    小数点不是句读：先把「数字.数字」护起来再切，否则 2.4% 会被劈成两个请求，
-    语音中间凭空多一个硬停顿（同一句话被读成两段）。
+    词里的点不是句读：先把左右都是数字或 ASCII 字母的点（2.4% / X.509 / node.js）护起来再切，
+    否则 2.4% 会被劈成两个请求，语音中间凭空多一个硬停顿（同一句话被读成两段）。
     """
     if len(text) <= limit:
         return [text]
     guard = '\x00'
-    masked = re.sub(r'(?<=\d)\.(?=\d)', guard, text)
+    masked = re.sub(r'(?<=[\dA-Za-z])\.(?=[\dA-Za-z])', guard, text)
     parts = re.split(r"(?<=[。！？；，、,.!?;：:\n])", masked)
     out: list[str] = []
     for p in parts:

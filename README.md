@@ -14,7 +14,7 @@
 | | |
 |---|---|
 | **配音** | 默认 **阿里云百炼 `qwen-audio-3.1-tts-flash`**（字级时间戳，18 个实测音色）；也可切 edge-tts（免密钥）或火山引擎语音合成 2.0。三种引擎产出同一种 manifest，下游零改动 |
-| **字幕** | 按词/字级时间戳切块、硬字幕烧录，同时输出 SRT / VTT；数字展开读法（「2026」→「二零二六」）会映射回原文，不会错位 |
+| **字幕** | 按词/字级时间戳切块、硬字幕烧录，同时输出 SRT / VTT；数字展开读法（「2026」→「二零二六」）会映射回原文，不会错位；停顿被并进英文词首字母时，块从开口处起；`2.4%`、`X.509` 里的点照留 |
 | **画面** | HTML + CSS + GSAP，1920×1080 或竖版；23 个风格模板（8 类）+ 40 多个动效词汇；`style_director.py` 读解说词给每场挑风格与动效强度 |
 | **音画同步** | 场景里写 `B('块文本')` 取该字幕块的起播秒排动画；时长取 MP3 容器时长，拼音轨时每段按同一时长补齐到采样（长片不漂移），字幕收尾取语音真实结束 |
 | **渲染** | 确定性逐帧 seek 截图（不是实时录屏）；1080p / 2K / 4K，30 / 60 fps；可选快门运动模糊；多浏览器进程并行、断点续渲 |
@@ -230,6 +230,7 @@ node scripts/render_video.mjs . --list-profiles      # 看全部档位
 ```bash
 python scripts/check_integrity.py          # 仓库自洽：版本号、风格目录、模板外链、密钥防线、frontmatter
 python tests/test_subs_text.py             # 字幕文本规则
+python tests/test_subs_pause_letter.py     # 块起点不落在停顿上（真实时间戳，不联网）
 python tests/test_tts_ali.py               # 阿里 TTS（不联网、不需要密钥）
 python tests/test_tts_chunk_marks.py       # 切块符 | 不送 TTS（三个引擎，不联网）
 python tests/test_lint_frames.py           # lint：搭建期读布局

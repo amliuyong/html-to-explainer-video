@@ -112,8 +112,9 @@ window.__SEG__ = { id: "_template", duration: 9.0, speech_end: 8.2, tail: 0.8 };
 (function () {
   var B = window.__BEATS__;
   function norm(s) {
-    // 小数点不是标点：先护住「数字.数字」，去完标点再还原，否则 B('2.4%') 会被削成 '24%'。
-    return String(s || '').replace(/(\\d)\\.(\\d)/g, '$1\\u0000$2')
+    // 词里的点不是标点：先护住左右都是数字或字母的点（2.4% / 1.2.3 / X.509），去完标点再还原，
+    // 否则 B('2.4%') 会被削成 '24%'、B('X.509') 撞上 'X509'。用前瞻，连着的点（1.2.3）才都护得住。
+    return String(s || '').replace(/([0-9A-Za-z])\\.(?=[0-9A-Za-z])/g, '$1\\u0000')
       .replace(/[\\s，。、！？；：,.!?;:|]/g, '')
       .replace(/\\u0000/g, '.');
   }

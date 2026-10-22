@@ -1,6 +1,6 @@
 ---
 name: html-to-explainer-video
-version: 2.1.2
+version: 2.1.3
 description: 把任意主题做成讲解/科普视频并渲染成 MP4（HTML/CSS/GSAP 画面 + 确定性逐帧渲染 + 配音（默认阿里云百炼，可切 edge-tts / 火山）+ 词级硬字幕）。触发场景：要做科普/讲解/教学/知识/产品类视频、「讲一下 X 做成视频」、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面/9:16 封面、要用 html-video 那种模板化画面但更稳的音画同步、anything2explainer 换 HTML 渲染，或提到 html-to-explainer-video / HTML 讲解视频 / explainer video / MG 视频。内置 23 个模板风格（8 类）与 40+ 动作词汇的动效库，主题驱动模板编排；支持 4K60、快门运动模糊、多进程提速、断点续渲；流程含六个用户确认点（渲染通道是硬闸门）。独立可移植，不依赖 html-video / anything2explainer。
 agent_created: true
 ---
@@ -488,8 +488,9 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
   **`check_beats_refs.py` 必须全绿** —— `B()` 是**前缀匹配**（text 必须是块文本的开头），
   且抛错只在渲到那一帧时才发生（见 `references/lessons.md` #90）
 - 字幕：中文 ≤16 字/块、无标点、单帧硬切、每块 ≥0.6s；末块跟着语音消失。
-  **小数点不算标点**（`2.4%` 上屏幕必须是 `2.4%`，削成 `24%` 是差一个数量级的假数字）；
-  `,` / `:` 照删。这条规则有五个出口，改动要一起动（见 `references/lessons.md` #88）
+  **词里的点不算标点**：左右都是数字或 ASCII 字母的点留着（`2.4%` 上屏幕必须是 `2.4%`，削成 `24%`
+  是差一个数量级的假数字；`ASN.1` / `X.509` / `node.js` 也一样）；`,` / `:` 照删。这条规则有五个出口，
+  改动要一起动（见 `references/lessons.md` #88、#143）
 - 底色：**用了亮底（浅色背景）就必须先给字幕层换肤** —— 渲染器注入的字幕/进度条默认是
   「白字 + 黑描边」，白字落在米白纸面上等于看不见。主题文件里给亮底作用域补
   `--mg-sub-fg` / `--mg-sub-stroke` / `--mg-track` / `--mg-tick` 即可（见 `references/lessons.md` #75）。
@@ -518,7 +519,7 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 | `scripts/tts_volcano.py` | **火山引擎语音合成 2.0 接口包**：唯一读 `tts.env` 的地方；`--check` / `--voices` / `--synth`。密钥不回显、异常脱敏（`_redact`） |
 | `scripts/tts_build.py` | 配音合成：阿里云百炼（默认）/ edge-tts / 火山引擎（`--provider`）；缓存/硬超时/退避重试/裁静音，manifest 写两级时长。三引擎 manifest 结构一致；字级时间戳是插值的（不在 1/32 秒网格上）时打 ⚠、记 `even_timestamps`（lessons #140） |
 | `scripts/timeline_build.py` | layout.json 全局轴 + narration-full.mp3（每段按 layout 槽位补齐到采样，gap 显式插入；总长差 > 1 帧即失败） |
-| `scripts/subs.py` | 字幕三出口（subs.json / srt+vtt / 画面内层由渲染器注入）+ beats.js 节拍器 |
+| `scripts/subs.py` | 字幕三出口（subs.json / srt+vtt / 画面内层由渲染器注入）+ beats.js 节拍器。块首那一项要是阿里把停顿并进了下一个英文词的首字母（「：\|p」+「andas」），块从这一项的结尾起（lessons #144） |
 | `scripts/check_beats_refs.py` | **节拍引用构建期校验**：把每帧的 `B()`/`Be()` 全抓出来和自己的 beats 表对一遍。**`B()` 是前缀匹配**（`bt===t ‖ bt.startsWith(t) ‖ t.startsWith(bt)`，归一化不去 `《》「」`），取中间一段会抛错 —— 而那个错**只在渲到那一帧时才炸**（前面几百帧白渲）。本脚本把它提前到构建期：失配打印**该帧可用块列表**，退出码 1，秒级 |
 | `scripts/style_director.py` | ★ **v2.0 主题驱动风格编排**：读 `narration.json` 推断每场角色（开场/陈述/数据/原理/例证/反差/收束/落版），按角色×子类别×时长×内容词打分挑**主风格**，按能量预算给部分场搭**次风格**（局部替换），决定**开场变体**、**场间转场**、**动效强度**，并施加多样性约束（风格数上限/连续同风格上限/开场≠第二场）。产物 `style-plan.json` 的 `why` 字段逐条可解释 |
 | `scripts/lint_frames.py` | **渲染前静态体检**：十条契约违规逐条报（外链字体/色值字面量/墙钟/`B()\|\|N`/字幕带压内容/缺中文字体族/搭建期读布局…；连帧引用的本地脚本一起扫）—— 只看**文本规则**，看不见几何 |

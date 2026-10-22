@@ -78,11 +78,16 @@ jobs:
         shell: bash
         run: bash -n setup_env.sh
 
-      # --- 文本规则回归：去句读标点，但小数点不是标点 ---
+      # --- 文本规则回归：去句读标点，但词里的点不是标点（左右都是数字或 ASCII 字母：2.4% / ASN.1 / X.509）---
       # 这条不变式有五个出口（屏幕字幕 / SRT / B() 节拍 / 火山切句 / subs.json），
-      # 任何一处削掉小数点，屏幕上就会出现「念 2.4%、写 24%」的假数字，且不报错。
+      # 任何一处削掉它，屏幕上就会出现「念 2.4%、写 24%」的假数字或「ASN1」，且不报错（lessons #88、#143）。
       - name: Subtitle text rules regression test
         run: python tests/test_subs_text.py
+
+      # --- 块起点不落在停顿上：阿里把停顿并进下一个英文词的首字母（「：|p」+「andas」），块从这一项的结尾起；
+      #     拼读的字母、停顿在空档里、插值的等长项不动，同一段别的块一个不变（lessons #144；真实时间戳，不联网）---
+      - name: Pause-letter block start regression test
+        run: python tests/test_subs_pause_letter.py
 
       # --- 阿里 TTS：SSE 多行 data 拼接 / 判错 / 时间戳映射回原文（不联网、不需要密钥）---
       - name: Aliyun TTS regression test
