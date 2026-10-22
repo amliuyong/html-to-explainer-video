@@ -11,6 +11,7 @@
  *
  * ★ 判据是**终态**，不是中途帧。入场动画跑到一半时元素本来就在半路，
  *   拿中途帧判「对齐/遮挡」必然误判（见 frame_at.py 同款说明）。
+ *   有出场的场景（__SEG__.gap > 0），终态取 speech_end 那一刻，不取轴末：轴末已经出场、全淡没了（lessons #147）。
  *
  * 用法：
  *   node scripts/check_layout.mjs <项目目录>
@@ -121,8 +122,15 @@ const seekEnd = async (o) => {
   let dur = 0;
   if (tl && typeof tl.duration === 'function') {
     dur = tl.duration() || 0;
+    // ★ 有出场的场景量 speech_end 那一刻（lessons #147）：出场排在 [speech_end, duration + gap] 里（契约 10），
+    //   轴末是出场之后、东西都淡没了的画面，量出来是 0 个元素。主体动画压在 speech_end 之前（契约 8），
+    //   所以那一刻就是本场的完整态。没有出场的末场（gap = 0）和没有 __SEG__ 的帧照旧量轴末。
+    const seg = window.__SEG__;
+    if (seg && Number(seg.gap) > 0 && Number.isFinite(Number(seg.speech_end))) {
+      dur = Math.min(dur, Number(seg.speech_end));
+    }
     tl.pause(0, false);
-    // ★ 按项目帧率逐帧走到轴末，与 render_video 的 seek 历史一致（lessons #138）
+    // ★ 按项目帧率逐帧走到量的那一刻，与 render_video 的 seek 历史一致（lessons #138）
     const fps = (o && o.fps) || 0;
     if (fps > 0) { const last = Math.floor(dur * fps + 1e-9); for (let k = 1; k <= last; k++) tl.pause(k / fps, false); }
     tl.pause(dur, false);          // ← 第二参必须 false

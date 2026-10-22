@@ -97,6 +97,7 @@ def split_chunks(text: str):
 # 切块符 `|` 的另一半：送 TTS 之前去掉（lessons #142）。和 split_chunks 放在一起，`|` 怎么用只在这里定义。
 _CHUNK_MARKS = re.compile(r'\s*(?:\|\s*)+')
 _ASCII_ALNUM = re.compile(r'[0-9A-Za-z]')
+_ASCII_PRINT = re.compile(r'[!-~]')     # 可见的 ASCII 字符：字母、数字、半角标点
 
 
 def strip_chunk_marks(text: str) -> str:
@@ -107,6 +108,8 @@ def strip_chunk_marks(text: str) -> str:
     所以去掉 `|` 不补停顿：
       - 两边是中文、标点，或在段首段尾 → 直接去掉（「判断|这套」照常连读，不再停一下）
       - 两边都是 ASCII 字母或数字 → 换成一个空格（「Intensive|Applications」不连成一个词，「300|400」不连成一个数）
+      - 两边都是 ASCII、一边是字母或数字 → 换成一个空格：英文句读后面接下一个词（「minutes.|Today」「warehouse,|and」），
+        去掉 `|` 不补空格就念成「minutes.Today」（lessons #145）。全角标点后面照旧直接连上（「：|p」）
       - `|` 旁边本来就有空白 → 收成一个空格
     没有 `|` 的文本原样返回。服务端的字级时间戳落在去掉 `|` 的文本上；chunk_starts 对的 tts_text
     是各块直接拼起来的，同样没有 `|`，所以每块照旧对到自己首字的时间戳。
@@ -120,7 +123,9 @@ def strip_chunk_marks(text: str) -> str:
         if not a or not b:
             return ''
         spaced = any(ch != '|' for ch in m.group(0))
-        return ' ' if spaced or (_ASCII_ALNUM.match(a) and _ASCII_ALNUM.match(b)) else ''
+        latin = (_ASCII_PRINT.match(a) and _ASCII_PRINT.match(b)
+                 and (_ASCII_ALNUM.match(a) or _ASCII_ALNUM.match(b)))
+        return ' ' if spaced or latin else ''
 
     return _CHUNK_MARKS.sub(_join, text)
 
@@ -286,12 +291,23 @@ _TO_SPACE = set('  \u3000\t')
 _DROP_PUNCT = set('，。！？；：,.!?;:、·|｜')
 
 
-def clean_sub_text(s: str, lang: str = 'zh') -> str:
-    """屏幕文本：去句读标点（标点只驱动 TTS 停顿，不上画面）。
+# 英文块尾的句读：块已经是一行字幕，句末的点、逗号、冒号不上屏；问号、感叹号留着（它们改变语气）。
+_EN_TAIL_PUNCT = re.compile(r'[\s.,;:、，。；：|｜]+$')
 
-    唯一例外：词里的点（2.4% / ASN.1 / X.509，左右都是数字或 ASCII 字母）保留 —— 它属于数字或名字本身，
+
+def clean_sub_text(s: str, lang: str = 'zh') -> str:
+    """屏幕文本：中文去句读标点（标点只驱动 TTS 停顿，不上画面）；英文只去块尾的句读。
+
+    中文的唯一例外：词里的点（2.4% / ASN.1 / X.509，左右都是数字或 ASCII 字母）保留 —— 它属于数字或名字本身，
     删掉会让画面显示的数字与念出来的差一个数量级，或者写成另一个名字。逗号照删（lessons #88 用户拍板）。
+
+    英文（块里没有中文，lang 不是 'zh'）保留句内标点（2026-10-22 用户拍板，lessons #145）：逗号、冒号删掉，
+    「Kafka, a warehouse」上屏成「Kafka a warehouse」，「Declare a source: MySQL, PostgreSQL」上屏成
+    「Declare a source MySQL PostgreSQL」，读不通；数字也照原样（「1,000」）。块尾的 . , ; : 去掉，? ! 留着。
     """
+    if lang != 'zh':
+        t = ''.join(' ' if ch in _TO_SPACE else ch for ch in s if ch not in '|｜')
+        return _EN_TAIL_PUNCT.sub('', re.sub(r'\s{2,}', ' ', t).strip())
     out = []
     for i, ch in enumerate(s):
         if ch in _KEEP_CHARS:

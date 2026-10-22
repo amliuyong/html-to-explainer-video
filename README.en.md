@@ -244,9 +244,11 @@ python tests/test_tts_ali.py               # offline, no key needed
 python tests/test_tts_chunk_marks.py       # the | chunk separator never reaches TTS (all three engines, offline)
 python tests/test_lint_frames.py
 python tests/test_qc_continuity.py         # end-to-end part skips without numpy / ffmpeg
+python tests/test_qc_frame_count.py        # frame count falls back to decoding when stream copy counts nothing (no real ffmpeg)
 node   tests/test_beats_norm.mjs
 node   tests/test_page_probe_escapes.mjs   # page-evaluated source strings keep their regex escapes
 node   tests/test_seek_history.mjs         # renders do not depend on seek history (skips without a browser)
+node   tests/test_layout_exit.mjs          # the layout check measures before the exit transition (skips without a browser)
 ```
 
 CI (`.github/workflows/ci.yml`) runs these on Ubuntu and Windows with Python 3.9 and 3.13 with `HX_NO_SKIP=1`:

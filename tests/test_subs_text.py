@@ -124,6 +124,18 @@ def _src(rel):
 check("new_project.py 占位节拍的 norm() 与 subs.py 一致",
       _norm_src(_src("scripts/new_project.py")), _norm_src(_src("scripts/subs.py")))
 
+# ---- 英文字幕：句内标点留着，块尾的 . , ; : 去掉（2026-10-22 用户拍板，lessons #145）----
+print("英文屏幕文本 clean_sub_text(lang='en')")
+check("句内逗号留着", subs.clean_sub_text("Today it takes Kafka, a warehouse,", "en"), "Today it takes Kafka, a warehouse")
+check("句内冒号留着", subs.clean_sub_text("Declare a source: MySQL, PostgreSQL,", "en"), "Declare a source: MySQL, PostgreSQL")
+check("块尾句号去掉", subs.clean_sub_text("should be queryable in minutes.", "en"), "should be queryable in minutes")
+check("块尾冒号去掉", subs.clean_sub_text("cove-lake:", "en"), "cove-lake")
+check("问号留着", subs.clean_sub_text("Is it fast?", "en"), "Is it fast?")
+check("千分位逗号留着", subs.clean_sub_text("1,000 changes per second.", "en"), "1,000 changes per second")
+check("词里的点留着、省略号去掉", subs.clean_sub_text("in 2.6 minutes...", "en"), "in 2.6 minutes")
+check("切块符与多余空白", subs.clean_sub_text("one |  two", "en"), "one two")
+check("中文块照旧全删（lessons #88）", subs.clean_sub_text("工具：pandas，很好用。"), "工具pandas很好用")
+
 # ---- 构建期校验 check_beats_refs.norm：与 beats.js 的 norm() 同规则 ----
 print("check_beats_refs.norm")
 cbr = _load("check_beats_refs", "scripts/check_beats_refs.py")

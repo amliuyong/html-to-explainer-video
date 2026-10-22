@@ -233,11 +233,13 @@ python tests/test_subs_text.py             # 字幕文本规则
 python tests/test_subs_pause_letter.py     # 块起点不落在停顿上（真实时间戳，不联网）
 python tests/test_tts_ali.py               # 阿里 TTS（不联网、不需要密钥）
 python tests/test_tts_chunk_marks.py       # 切块符 | 不送 TTS（三个引擎，不联网）
-python tests/test_lint_frames.py           # lint：搭建期读布局
+python tests/test_lint_frames.py           # lint：搭建期读布局、本地样式表、英文帧不要求中文字体
 python tests/test_qc_continuity.py         # 逐帧连续性（缺 numpy / ffmpeg 时跳过端到端段）
+python tests/test_qc_frame_count.py        # 实测帧数：流复制不数帧时解码再数（不跑真的 ffmpeg）
 node   tests/test_beats_norm.mjs           # 节拍匹配
 node   tests/test_page_probe_escapes.mjs   # 交给浏览器执行的源码字符串：转义不被模板字符串吃掉
 node   tests/test_seek_history.mjs         # 渲染与 seek 历史无关：--workers 3 与 1 逐帧一致（缺浏览器时跳过）
+node   tests/test_layout_exit.mjs          # 几何体检量出场之前那一刻（缺浏览器时跳过）
 ```
 
 CI（`.github/workflows/ci.yml`）在 Ubuntu 与 Windows、Python 3.9 与 3.13 上跑以上检查，并设 `HX_NO_SKIP=1`：
