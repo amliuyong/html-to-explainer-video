@@ -29,6 +29,7 @@ tts_volcano.py —— 火山引擎（豆包）语音合成 2.0 接口包。
   响应:   NDJSON，逐行 JSON；音频块 code=0 + data(base64)；
           **sentence.words[] 直接给字级时间戳**（word / startTime / endTime / confidence，单位秒）；
           结束标记 code=20000000 且 data=null（★ 不是 code=0，误判会丢最后一段音频）。
+          ★ 没读到结束标记就结束的流算截断、可重试（lessons #150：断在两块之间时标准库不报错）。
 
 【本机注意】openspeech.bytedance.com 是境内端点，默认**绕过系统代理**直连
 （本机常驻代理会让境内域名绕远甚至失败）。要强制走代理时设 VOLC_PROXY。
@@ -353,6 +354,7 @@ def _one_request(text: str, voice: str, cred: dict[str, str], rate: int,
     chunks: list[bytes] = []
     boundaries: list[dict] = []
     usage: dict = {}
+    ended = False
     try:
         with _opener().open(req, timeout=timeout) as resp:
             for raw in resp:                       # NDJSON：逐行
@@ -370,6 +372,7 @@ def _one_request(text: str, voice: str, cred: dict[str, str], rate: int,
                 if obj.get("usage"):
                     usage = obj["usage"]
                 if code == END_CODE:               # ★ 结束标记，且不含音频
+                    ended = True
                     continue
                 if code not in (0, None):
                     raise VolcanoTTSError(
@@ -413,6 +416,11 @@ def _one_request(text: str, voice: str, cred: dict[str, str], rate: int,
     except TimeoutError:
         raise VolcanoTTSError(f"请求超时（{timeout}s）")
 
+    if not ended:
+        # 分块传输断在两块之间时，标准库逐行读把它当成正常 EOF，不报错（lessons #150）：
+        # 收到的只是前一截音频和时间戳。只有读到结束标记才算读完
+        raise VolcanoTTSError(
+            f"读流提前结束：没收到结束标记 code={END_CODE}，流被截断（已收 {len(chunks)} 个音频块）")
     if not chunks:
         raise VolcanoTTSError("没有收到任何音频块（检查音色 ID 与文本是否为空）")
     return b"".join(chunks), boundaries, usage

@@ -102,6 +102,12 @@ jobs:
       - name: Chunk separator regression test
         run: python tests/test_tts_chunk_marks.py
 
+      # --- 截断的合成不算成功：分块传输断在两块之间时标准库不报错，读流要读到最终帧 / 结束标记；
+      #     0 个字级时间戳、音频短得不像这段文字的结果重试后非零退出，不进缓存，坏的缓存读时认出来重配
+      #     （lessons #150；真的 http.client 分块响应 + 假引擎，不联网）---
+      - name: Truncated synthesis regression test
+        run: python tests/test_tts_truncated.py
+
       - name: Beats matcher regression test
         run: node tests/test_beats_norm.mjs
 

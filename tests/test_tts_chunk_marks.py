@@ -160,6 +160,9 @@ def fake_urlopen(req, timeout=None):
     lines += sse_event(2, {"output": {"type": "sentence-end", "original_text": text, "normalized_text": norm,
                                       "audio": {"data": ""}, "sentence": {"index": 0, "words": words}},
                            "usage": {"output_tokens": 1}, "request_id": "fake"})
+    # 最终帧：没有它，2.2.1 起 parse_stream 当流被截断（lessons #150）
+    lines += sse_event(3, {"output": {"audio": {"data": ""}, "finish_reason": "stop"},
+                           "usage": {"output_tokens": 1}, "request_id": "fake"})
     return FakeResp(lines)
 
 
