@@ -30,7 +30,7 @@ python <skill>/scripts/tts_build.py --project .                # provider 缺省
 - 3.1 只认 `*_v3.1` 音色（区分大小写）。`project.json` 里如果留着 edge（`…Neural`）或
   火山（`…_bigtts`）的音色 ID，`tts_build.py` 会提示并回落到默认音色。
 - 内置目录里的 18 个音色 2026-10-19 逐个实测过，都返回字级时间戳（中文按字，英文按词）。
-  目录外的音色如果不返回时间戳，`tts_build.py` 会打警告，字幕退化成按字数插值。
+  目录外的音色如果不返回时间戳，`tts_build.py` 打警告并算合成失败（2.2.1 起，lessons #150；原来是字幕退化成按字数插值）。
 - 语速沿用 `+N%` 写法（`new_project.py` 默认 `+8%`），`tts_ali.py` 换算成倍速 `1 + N/100`，
   夹在 [0.5, 2.0]。实测 `rate=1.2` 时长 7.656s → 6.384s，时间戳同比缩放。
 - `project.json` 的 `lang` 会作为 `language_hints` 传给服务端，改善数字和符号的读法。
@@ -47,6 +47,7 @@ python <skill>/scripts/tts_build.py --project .                # provider 缺省
 | 某些写法只返回**插值的**字级时间戳：offset 不在真时间戳的网格上（中文字级在 1/32 秒上，英文词级在 0.08 秒上；真的都在，lessons #146），整段或从某个字起到段尾（2026-10-21：13 集 673 段里 19 段，不算片头；片头那一句 8 集都是插值的；同一段文字重配，返回逐字节相同的音频） | `tts_build.py` 打 ⚠ 并在 manifest 记 `even_timestamps`（lessons #140）。改写这一段（换个说法、调语序、拆句）再重配；不改的话这一段的字幕和 `B()` 节拍对不上吐字 |
 | 数字不熔读：`4479.55` 读作「四千四百七十九点五五」 | 不需要 edge 那套「数字间补逗号」 |
 | 业务空间域名一个 SSE 事件拆成多行 `data:`；出错时是 HTTP 400 + `event:result` | 按规范拼接；判错只认 `code`（dashscope SDK 1.27.7 的流式栽在这里，所以只用标准库） |
+| 读流会断（2026-10-22：一集 52 段的首配里好几次）。断在一块里面是「读流中断」，断在一帧中间是「SSE 帧不是合法 JSON」；**断在两块之间时标准库不报错**（`http.client` 吞掉 `IncompleteRead`，当成 EOF），拿到的是半截音频、没有 `sentence-end`，也就没有时间戳。那一集 11 段这样进了缓存（`boundary_count` 0，一整句只剩 3.77 秒） | 2.2.1 起读不到最终帧（`finish_reason: "stop"`）就是「读流提前结束」，三种都退避重试。`tts_build.py` 再查一遍结果：0 个字级时间戳、或音频短得不像这段文字（< 0.11 秒 × 可念单位数 ÷ 语速倍数），重试后非零退出，不进缓存、不覆盖上一次的音频；坏的缓存读时认出来重配（lessons #150） |
 | 首字节约 1 秒，一句 7 秒的音频整个请求约 2 秒 | — |
 
 ## 排错
@@ -57,6 +58,8 @@ python <skill>/scripts/tts_build.py --project .                # provider 缺省
 | `InvalidApiKey` | `apiKey` 不对，或 Key 与 `dashScope` 域名不在同一地域 |
 | `DataInspectionFailed` | 内容安全拦截，改写那句解说词 |
 | `Throttling…` | 超过 180 RPM，自动退避重试 |
+| `读流提前结束` / `读流中断` / `SSE 帧不是合法 JSON` | 读流断了，自动退避重试；重试完还断就稍后重跑（坏的结果没进缓存） |
+| `BadSynthesis: 没有字级时间戳` / `音频只有 …s` | 引擎返回了，结果却是截断的或没有时间戳（lessons #150）：稍后重跑；同一段一直这样就改写这一段；每段都没有时间戳是音色不支持，换回内置目录里的音色 |
 | `找不到阿里云百炼密钥文件` | `tts_setup.py` 会输出 `NEXT_ACTION=fill_ali_key` 并停下，让用户补文件或设 `ALI_TTS_KEY_FILE` |
 
-回归测试：`python tests/test_tts_ali.py`、`python tests/test_tts_even_timestamps.py`、`python tests/test_tts_chunk_marks.py`（不联网、不需要密钥）。
+回归测试：`python tests/test_tts_ali.py`、`python tests/test_tts_even_timestamps.py`、`python tests/test_tts_chunk_marks.py`、`python tests/test_tts_truncated.py`（不联网、不需要密钥）。

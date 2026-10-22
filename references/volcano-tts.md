@@ -114,6 +114,8 @@ Body:   {user:{uid}, req_params:{text, speaker, audio_params:{format,sample_rate
 
 1. **结束标记的 `code` 是 `20000000`,不是 `0`。** 只判 `code===0` 收音频会丢最后一段
    （症状：合并出来的音频末尾「嘎然而止」）。本包按 `code` 显式区分。
+   反过来，**读不到结束标记的流是被截断的**：分块传输断在两块之间时标准库逐行读不报错，当成 EOF；
+   2.2.1 起没读到 `20000000` 就抛可重试的「读流提前结束」（lessons #150）。
 2. **★ 字级时间戳必须显式开 `audio_params.enable_subtitle: true`。**
    官方文档的响应示例里 `words[]` 是有值的，**很容易误以为默认就给** ——
    实测不传该参数 `words` **恒为空数组**（同文本对照：`false` → `words=0`，`true` → `words=10`）。
@@ -193,5 +195,6 @@ Body:   {user:{uid}, req_params:{text, speaker, audio_params:{format,sample_rate
 | `HTTP 404` | 音色与资源 ID 不匹配 —— 预置音色要配 `seed-tts-2.0` |
 | `网络不可达` | 本包默认直连；若确实需要代理，设 `VOLC_PROXY=http://127.0.0.1:<port>` |
 | 音频末尾「嘎然而止」 | 结束标记 `code=20000000` 的处理问题（本包已处理；自研代码要留意） |
+| `读流提前结束：没收到结束标记` | 流被截断，自动退避重试；`tts_build.py` 对 0 个时间戳、音频短得不像这段文字的结果同样重试后非零退出、不进缓存（lessons #150） |
 | 字幕与音频错位 | 检查 `sentence.words[]` 是否被正确映射成 `offset_sec`（单位是**秒**） |
 | 想确认测的到底是哪个引擎 | `--check` 会先打印 `测试方案：<provider>` |

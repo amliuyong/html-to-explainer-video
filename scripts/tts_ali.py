@@ -38,6 +38,9 @@ tts_ali.py —— 阿里云百炼语音合成（qwen-audio-3.1-tts-flash）接�
   ★ words 落在**展开读法后的文本**上（「2026」→「二零二六」），本包映射回原文后才交给
     下游 —— 不映射会让字幕整体提前好几秒（见 to_original）。
   ★ 判错只认 data 里的 code：业务空间域名出错是 HTTP 400 + event:result，不是 event:error。
+  ★ 流要读到最终帧（finish_reason=stop）才算完（lessons #150）。分块传输的连接断在两块之间时，
+    标准库逐行读会把它当成正常 EOF（http.client 的 _peek_chunked 吞掉 IncompleteRead），
+    拿到的是半截音频、没有 sentence-end，也就没有时间戳 —— 不查最终帧就会当成功。
   ★ rate 是倍速 [0.5, 2.0]。本包把「快百分之几」换算成 1 + pct/100
     （实测 rate=1.2：7.656s → 6.384s，时间戳同比缩放）。
 
@@ -328,10 +331,12 @@ def to_original(words: list[dict], original: str, normalized: str) -> list[list]
 
 
 def parse_stream(lines) -> tuple[bytes, list[dict], dict]:
-    """SSE 行流 → (音频字节, boundaries, usage)。遇到错误帧抛 AliTTSError。"""
+    """SSE 行流 → (音频字节, boundaries, usage)。遇到错误帧抛 AliTTSError；
+    没读到最终帧（finish_reason 不是 "null" 的那一帧）就结束的流抛可重试的 AliTTSError。"""
     audio = bytearray()
     words_by_sentence: dict[int, list] = {}
     usage: dict = {}
+    ended = False
     for _event, payload in _iter_events(lines):
         try:
             msg = json.loads(payload)
@@ -355,6 +360,16 @@ def parse_stream(lines) -> tuple[bytes, list[dict], dict]:
                 out.get("normalized_text") or "")
         if msg.get("usage"):
             usage = msg["usage"]
+        # 中间帧的 finish_reason 是字符串 "null"；最终帧是 "stop"（没有 type，audio.data 为空）
+        if out.get("finish_reason") not in (None, "", "null"):
+            ended = True
+
+    if not ended:
+        # 分块传输断在两块之间时标准库不报错，流就这么结束了（lessons #150）：
+        # 收到的只是前一截音频，后面的 sentence-end 没来，时间戳是空的
+        raise AliTTSError(
+            f"读流提前结束：没收到最终帧（finish_reason=stop），流被截断"
+            f"（已收 {len(audio)} 字节音频、{len(words_by_sentence)} 句时间戳）")
 
     boundaries: list[dict] = []
     for idx in sorted(words_by_sentence):
@@ -423,6 +438,7 @@ def _one_request(text: str, voice: str, cred: dict[str, str], rate: float,
         raise AliTTSError(f"请求超时（{timeout}s）") from None
     try:
         with resp:
+            # 断在一块里面 → IncompleteRead（下面接住）；断在两块之间 → 标准库当 EOF，parse_stream 查最终帧
             return parse_stream(resp)
     except (TimeoutError, socket.timeout):
         raise AliTTSError(f"读流超时（{timeout}s）") from None
@@ -456,11 +472,12 @@ def synthesize(text: str, voice: str = DEFAULT_VOICE, rate=0,
             if fmt == "mp3" and not tts_volcano._looks_like_mp3(audio):
                 raise AliTTSError("返回的音频不是有效 MP3 头（可能被截断）")
             result = {"audio": audio, "boundaries": bounds, "usage": usage, "requests": 1}
-            # ★ 要了时间戳却一个都没回来：静默放行会让下游字幕整段塌成按字数插值
+            # ★ 流是完整的（读到了最终帧），要了时间戳却一个都没回来：多半是音色不支持。
+            #   tts_build 不收没有时间戳的结果（lessons #150），这条提醒说明为什么
             if not bounds:
                 result["warning"] = (
                     f"音色 {voice} 未返回字级时间戳（sentence.words 为空），"
-                    f"字幕将退化为按字数插值 —— 建议换回 {DEFAULT_VOICE}。")
+                    f"tts_build 不收没有时间戳的结果 —— 建议换回 {DEFAULT_VOICE}。")
             return result
         except AliTTSError as e:
             if not e.retryable:

@@ -47,6 +47,12 @@ html-video-workbuddy-driver 的 tts_edges.py 二次实战），核心五件事�
   even_timestamps         "whole" / "tail" / null：字级时间戳是不是插值的（不在真的时间戳的网格上、每字一样长或
                           段尾步长相同；整段 / 从某个字起，lessons #140）；被标出来的段打 ⚠，建议改写那一段再重配
 
+合成结果的体检（lessons #150）：读流被截断时引擎照样「成功」返回半截音频。三个引擎的结果进缓存之前都要过两条，
+不过就算合成失败 —— 退避重试，重试完还不过就非零退出；坏的结果不写缓存、不覆盖 audio/<id>.mp3：
+  ① 有可念的字，却一个字级时间戳都没有（boundary_count 0）；
+  ② 音频短得不像这段文字：裁后容器时长 < SHORT_SEC_PER_UNIT × 可念单位数 ÷ 语速倍数。
+  读缓存时同样过这两条：坏的缓存（2.2.0 及以前写进去的截断结果）不用，重新合成。
+
 用法（项目目录内）：
   python tts_build.py --project . [--provider ali|edge|volcano] [--rate +8%]
                      [--voice xuyuyuan_v3.1] [--no-trim]
@@ -84,6 +90,7 @@ DEFAULT_PITCH = "+0Hz"
 DEFAULT_TIMEOUT = 45.0
 DEFAULT_RETRIES = 4
 RETRY_SLEEP = 0.8
+RETRY_BACKOFF = 1.5       # 第 k 次失败后等 k × 1.5 秒再试
 VOLCANO_TIMEOUT = 60.0
 VOLCANO_RETRIES = 3
 ALI_TIMEOUT = 60.0
@@ -105,7 +112,51 @@ EVEN_WHOLE_SPREAD = 0.02  # 每字时长 max − min 小于它（秒）：每字
 EVEN_TAIL_STEPS = 8       # 段尾至少这么多个相等的 offset 步长
 EVEN_STEP_TOL = 0.0025    # 两个步长相差小于它（秒）就算相等（取整到毫秒后，同一个步长会差 2 ms）
 
+# 音频短得不像这段文字（lessons #150）：语速 +0% 时每个可念单位至少这么多秒，语速 +N% 时除以 1 + N/100。
+# 可念单位：一个汉字算一个；字母、数字连成的一串（一个英文词、一个数）算一个 —— 按字母数，英文片每段都会撞线。
+# 依据（裁后容器时长 × 语速倍数 ÷ 单位数，即折回 +0% 的每单位秒数）：一个中文系列 1164 段（xuyuyuan_v3.1，+28%）
+# 中位数 0.280，最快的一段 0.211；另一部中文片 54 段（anmingyuan_v3.1，+8%）最快 0.187；两部英文片 15 段（Andy_v3.1）最快 0.338。
+# 0.11 是 xuyuyuan 中位数的 39%，最快的真实段落是它的 1.7 倍以上。只抓粗的截断（半截以下）；细的靠 ① 和读流查结束帧。
+SHORT_SEC_PER_UNIT = 0.11
+_HAN = re.compile("[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\U00020000-\U0002fa1f]")   # 汉字（含扩展区、兼容区）
+
 _NUMERIC_RUN = re.compile(r"[0-9]+(?:\.[0-9]+)?")
+
+
+class BadSynthesis(RuntimeError):
+    """引擎「成功」返回了，结果却不能用（没有时间戳 / 音频短得不像这段文字，多半是读流被截断）。可重试。"""
+
+    retryable = True
+
+
+def speakable_units(text: str) -> int:
+    """可念单位数：汉字一个算一个，字母或数字连成的一串算一个（词里的 ' ’ 不断开：don't 是一个）。
+    标点、空白、符号不算。数字读出来往往不止一个音节（2026 → 二零二六），少算只会让下限更松。"""
+    s = text or ""
+    n, run = 0, False
+    for i, ch in enumerate(s):
+        if _HAN.match(ch):
+            n, run = n + 1, False
+        elif ch.isalnum():
+            n += 0 if run else 1
+            run = True
+        elif not (ch in "'’" and run and i + 1 < len(s) and s[i + 1].isalnum() and not _HAN.match(s[i + 1])):
+            run = False
+    return n
+
+
+def synthesis_problem(text: str, bounds: list[dict], audio_sec: float, rate) -> str | None:
+    """合成结果能不能用：不能用时返回原因（一行），能用时是 None。text 是送出去的文本，audio_sec 是裁后容器时长。"""
+    units = speakable_units(text)
+    if not units:
+        return None                          # 没有可念的字，两条都不判
+    if not bounds:
+        return f"没有字级时间戳（boundary_count 0，这段有 {units} 个可念单位），多半是读流被截断"
+    floor = SHORT_SEC_PER_UNIT * units / tts_ali.rate_multiplier(rate)
+    if audio_sec < floor:
+        return (f"音频只有 {audio_sec:.2f}s：{units} 个可念单位、语速 {rate} 至少要 {floor:.2f}s，"
+                f"多半是读流被截断")
+    return None
 
 
 def sanitize_for_tts(text: str) -> str:
@@ -330,10 +381,18 @@ async def synth(text, out_path, voice, rate, volume=DEFAULT_VOLUME, pitch=DEFAUL
             else:                                  # 旧版缓存是裸列表，没有首裁记录
                 bounds = cached
                 head_cut = 0.0
-            with open(cache_mp3, "rb") as f:
-                open(out_path, "wb").write(f.read())
-            dur = bounds[-1]["offset_sec"] + bounds[-1]["duration_sec"] if bounds else 0.0
-            return _result(text, spoken, out_path, voice, rate, bounds, dur, head_cut, trim)
+            cd = container_duration(cache_mp3)
+            bad = synthesis_problem(spoken, bounds, cd, rate)
+            if bad:
+                # 2.2.0 及以前，截断的结果照样进了缓存，重跑拿回的还是它（lessons #150）：
+                # 不用它，重新合成；合成好了覆盖它，合成不好就报错退出，它原样留着、下次照样不用
+                short = plain if len(plain) <= 24 else plain[:24] + "…"
+                print(f"  ⚠ 缓存里这一段是坏的（{bad}），重新合成：{short}", file=sys.stderr)
+            else:
+                with open(cache_mp3, "rb") as f:
+                    open(out_path, "wb").write(f.read())
+                dur = bounds[-1]["offset_sec"] + bounds[-1]["duration_sec"] if bounds else 0.0
+                return _result(text, spoken, out_path, voice, rate, bounds, dur, head_cut, trim, cd=cd)
 
     async def _once_edge():
         kw = {}
@@ -379,6 +438,9 @@ async def synth(text, out_path, voice, rate, volume=DEFAULT_VOLUME, pitch=DEFAUL
 
     _once = {"volcano": _once_volcano, "ali": _once_ali}.get(provider, _once_edge)
 
+    # 先写到旁边的 .part 文件，体检过了才换上去：坏的结果不覆盖上一次好的 audio/<id>.mp3（lessons #150）
+    root, ext = os.path.splitext(out_path)
+    part = f"{root}.part{ext or '.mp3'}"
     last: Exception | None = None
     for attempt in range(retries):
         try:
@@ -386,29 +448,40 @@ async def synth(text, out_path, voice, rate, volume=DEFAULT_VOLUME, pitch=DEFAUL
             for w in warns:
                 print(f"  ⚠ {w}", file=sys.stderr)
             warns.clear()
-            with open(out_path, "wb") as f:
+            with open(part, "wb") as f:
                 f.write(audio)
             await asyncio.sleep(RETRY_SLEEP)
-            head_cut = trim_edges(out_path) if trim else 0.0
+            head_cut = trim_edges(part) if trim else 0.0
+            cd = container_duration(part)
+            bad = synthesis_problem(spoken, bounds, cd, rate)
+            if bad:
+                raise BadSynthesis(bad)        # 截断的结果算合成失败：退避重试，不进缓存
+            os.replace(part, out_path)
             if cache_dir:
                 with open(cache_mp3, "wb") as f:
                     f.write(open(out_path, "rb").read())
                 json.dump({"boundaries": bounds, "lead_cut_sec": round(head_cut, 4)},
                           open(cache_js, "w", encoding="utf-8"), ensure_ascii=False)
             dur = bounds[-1]["offset_sec"] + bounds[-1]["duration_sec"] if bounds else 0.0
-            return _result(text, spoken, out_path, voice, rate, bounds, dur, head_cut, trim)
+            return _result(text, spoken, out_path, voice, rate, bounds, dur, head_cut, trim, cd=cd)
         except Exception as e:  # noqa: BLE001
             last = e
+            if os.path.exists(part):
+                os.remove(part)
             print(f"  [retry {attempt + 1}/{retries}] {type(e).__name__}: {e}", file=sys.stderr, flush=True)
             if getattr(e, "retryable", True) is False:
                 break          # 永久性错误（密钥/音色/参数），重试是白等
-            await asyncio.sleep(1.5 * (attempt + 1))
+            if attempt + 1 < retries:
+                await asyncio.sleep(RETRY_BACKOFF * (attempt + 1))
     label = PROVIDER_LABEL.get(provider, provider)
     if getattr(last, "retryable", True) is False:
         # 永久性错误（密钥/音色/参数）：只试了一次就别谎报「连续 N 次失败」
         detail = f"{label}：{last}"
     else:
         detail = f"{label} 连续 {attempt + 1} 次失败：{type(last).__name__}: {last}"
+    if isinstance(last, BadSynthesis):
+        detail += ("\n  坏的结果没写进缓存，也没覆盖上一次的音频。读流截断多半是一时的：稍后重跑；"
+                   "同一段一直这样，改写这一段（换个说法）再配；每段都没有时间戳，换回带字级时间戳的音色")
     if provider == "volcano":
         # 抛普通异常（不是 SystemExit）：SystemExit 不是 Exception 子类，
         # 会被 run() 里给火山准备的友好提示漏掉，用户就只看到一串原始报错。
@@ -418,8 +491,8 @@ async def synth(text, out_path, voice, rate, volume=DEFAULT_VOLUME, pitch=DEFAUL
     raise SystemExit(detail + "\n已合成段落走缓存不会重复耗时，稍后重跑即可。")
 
 
-def _result(text, spoken, out_path, voice, rate, bounds, dur, head_cut, trimmed) -> dict:
-    cd = container_duration(out_path)
+def _result(text, spoken, out_path, voice, rate, bounds, dur, head_cut, trimmed, cd=None) -> dict:
+    cd = container_duration(out_path) if cd is None else cd
     ds, de = speech_window(out_path) if trimmed else (0.0, cd)
     return {
         "path": os.path.abspath(out_path),
