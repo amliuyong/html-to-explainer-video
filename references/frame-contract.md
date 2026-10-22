@@ -24,6 +24,18 @@
 | 9 | **搭建时不读布局**：位置/尺寸不靠 `getBoundingClientRect` / `getBBox` / `offsetHeight` 现量，要量就生成期量好写成常量（见下「渲染期一致性」） | `--workers` 并行渲染下某个进程量歪 → 成片**每 N 帧整块跳一下**，lint/几何/抽帧全绿 |
 | 10 | **出场过渡写在本场尾部** `[speech_end, duration + __SEG__.gap]`（见下「场间过渡」） | 渲染器不做转场 → 每次换场都是硬切，同章常驻的角标/页眉还会闪一下 |
 
+## 关于第 3 条：lint 在哪里找色值
+
+`lint_frames.py` 只在**颜色上下文**里找 `#hex` / `rgb()` / `rgba()`（lessons #151）：CSS 声明的值（`<style>`、`style="…"`、
+帧引用的本地样式表）；颜色类的标签属性（`fill` / `stroke` / `stop-color` / `flood-color` / `color` …）；脚本里赋给颜色类属性的值
+（`{ fill: … }`、`attr: { 'stop-color': … }`、`el.style.color = …`、`setAttribute('fill', …)`、`style.setProperty('--x', …)`、
+`ctx.fillStyle = …`）；整串就是 `#rrggbb` / `#rrggbbaa` 的字符串（调色板 `var CREAM = "#F4EFE4"`）；字符串里的 `rgb()` / `rgba()`。
+脚本拼的标记与 CSS 文本（`innerHTML` 里的 `style="…"`、`fill="…"`，`cssText`）照样查。
+
+不算色值的：id 选择器（`#bd1 { … }`、`querySelector('#c13')`、`gsap.to('#c13', …)`）、别的字符串（格名 `'#301–'`）、
+注释（HTML / CSS / JS）、画面文字、`url(#fade)`。所以 id 和格名照常写，不用为 lint 拆开拼（lessons #108 的绕法 2.2.2 起不需要了）。
+查不到的写法：3 / 4 位色值先存进变量再用（`var C = '#c13'; tl.to(x, { fill: C })`）—— 它和 id `'#c13'` 分不开；颜色照契约取 `var(--…)`。
+
 ## 关于第 4 条的细节（最容易踩）
 
 - **不要用 CSS transition 做入场**。transition 只在属性变化时触发一次，渲染器逐帧 seek 时根本不生效。

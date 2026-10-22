@@ -6,8 +6,11 @@ lint_frames.py —— 场景帧静态体检（渲染前跑，比渲完全片再�
 检查项（全部来自 references/frame-contract.md 的十条契约 + 已知踩坑）：
   1. 画布：html,body 是否声明 1920×1080（或 project.json 的尺寸）
   2. 外部字体 / CDN：<link href="http...">、fonts.googleapis、@import url(http
-  3. 色值字面量：#RRGGBB / rgb() / rgba() 出现在 CSS 里（theme.css 变量之外）
+  3. 色值字面量：#RRGGBB / rgb() / rgba() 出现在颜色上下文里（theme.css 变量之外）
      —— 例外：纯黑/纯白阴影 rgba(0,0,0,x) 允许（阴影不是"配色"）
+     —— 只在颜色上下文里找（colour_spans，lessons #151）：CSS 声明的值（<style>、style="…"、本地样式表）、
+        颜色类的标签属性、脚本里赋给颜色类属性的值、整串就是 #rrggbb(aa) 的字符串、字符串里的 rgb()/rgba()。
+        脚本字符串「#301–」、id 选择器「#c13」、注释、画面文字、url(#fade) 不算
   4. 时间轴注册：window.__tl = （或 window.__timelines）
   5. GSAP 本地引用：../assets/gsap.min.js（禁 CDN）
   6. 墙钟逻辑：setInterval / setTimeout(数字) / requestAnimationFrame 计数
@@ -64,6 +67,40 @@ TAG = re.compile(r"<[^>]+>")
 # 允许出现的颜色字面量（阴影/透视遮罩，不参与配色语义）
 ALLOWED_RGBA_PREFIX = ("rgba(0,0,0", "rgba(0, 0, 0", "rgba(255,255,255", "rgba(255, 255, 255")
 
+# 第 3 条的颜色上下文（colour_spans）。CSS 里先抹掉注释、引号里的字符串、url(…)（url(#fade) 引用的是渐变 id），
+# 再只看声明的值：选择器与 @规则的前导不算（#bd1 { … } 是 id 选择器，lessons #108）。
+CSS_NOISE = re.compile(r"/\*.*?\*/|\"(?:\\.|[^\"\\\n])*\"|'(?:\\.|[^'\\\n])*'"
+                       r"|\burl\(\s*(?:\"[^\"]*\"|'[^']*'|[^)]*)\)", re.S | re.I)
+URL_REF = re.compile(r"\burl\([^)]*\)", re.I)
+STYLE_ATTR = re.compile(r"(?<![\w-])style\s*=\s*(?:\"([^\"]*)\"|'([^']*)')", re.I)
+# 标签属性 name="…" / name='…' / name=…；名字是否算颜色类由 colourish 判
+MARKUP_ATTR = re.compile(r"(?<![\w-])(-{0,2}[A-Za-z][\w-]*)\s*=\s*(?:\"([^\"]*)\"|'([^']*)'|([^\s\"'>]+))")
+# 脚本里颜色类属性的名字：{ fill: … } / { 'stop-color': … } / el.style.color = … / ctx.fillStyle = …（== 与 => 不算）
+JS_PROP = re.compile(r"(?<![\w$-])[\"']?(-{0,2}[A-Za-z][\w-]*)[\"']?\s*(?::|=(?![=>]))\s*")
+# setAttribute('fill', …) / style.setProperty('--accent', …) / gsap.set(el, 'fill', …)
+JS_PROP_ARG = re.compile(r"[\"'](-{0,2}[A-Za-z][\w-]*)[\"']\s*,\s*")
+# 名字后面的值：到同一层的 , ; } 或换行为止，字符串整串跳过（三元的两支、linear-gradient(#a, #b) 都在里面）。
+# 名字与值分开找：{ attr: { fill: … } } 里 attr 的值不能把里面的 fill 吞掉
+JS_VALUE = re.compile(r"(?:\"[^\"\n]*\"|'[^'\n]*'|`[^`]*`|[^,;}\n\"'`])*")
+# 调色板：整串就是 6 / 8 位色值的字符串（var CREAM = "#F4EFE4"）。3 / 4 位的「#c13」「#bd1」多半是 id，只在颜色类属性旁边报
+HEX_WHOLE = re.compile(r"#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})")
+
+
+def colourish(name: str) -> bool:
+    """属性名是不是颜色类：fill / stroke / *color / *shadow / background* / border* / outline* / filter /
+    fillStyle / strokeStyle，以及 CSS 自定义属性 --*。带不带连字符、data- 与浏览器前缀都认；大写开头的不算
+    （CSS 与 JS 的属性名都是小写开头，「Color: #1」这类是画面文字）。"""
+    if name.startswith("--"):
+        return True
+    n = re.sub(r"^-(?:webkit|moz|ms|o)-", "", name)
+    if n.startswith("data-"):
+        n = n[5:]
+    if not n[:1].islower():
+        return False
+    n = n.replace("-", "").lower()
+    return (n in ("fillstyle", "strokestyle", "filter") or n.endswith(("color", "shadow", "fill", "stroke"))
+            or n.startswith(("background", "border", "outline")))
+
 
 def check_file(path: str, want_w: int, want_h: int, is_cover: bool = False, lang: str = "zh") -> list[str]:
     src = open(path, encoding="utf-8").read()
@@ -89,20 +126,19 @@ def check_file(path: str, want_w: int, want_h: int, is_cover: bool = False, lang
     if GSAP_CDN.search(src):
         out.append("<script src=http…> → 违反契约 8（必须用 ../assets/gsap.min.js）")
 
-    # 3. 色值字面量（帧本身 + 引用的本地样式表）
+    # 3. 色值字面量（帧本身 + 引用的本地样式表），只在颜色上下文里找（colour_spans，lessons #151）
     for label, text in [(None, src)] + sheets:
         dest = sheet_out.setdefault(label, []) if label else out
-        for m in HEX.finditer(text):
-            val = m.group(0)
-            # 允许在注释里说明用（如出处署名），其余算违规
-            dest.append(f"色值字面量 {val} → 违反契约 3（颜色只取 theme.css 变量）")
-        for m in RGBA.finditer(text):
-            v = m.group(0).replace(" ", "").lower()
+        for _, val in colour_spans(text, is_css=label is not None):
+            if val.startswith("#"):
+                dest.append(f"色值字面量 {val} → 违反契约 3（颜色只取 theme.css 变量）")
+                continue
+            v = val.replace(" ", "").lower()
             if v.startswith(ALLOWED_RGBA_PREFIX):
                 continue
             if "var(" in v:      # rgba(var(--signal-rgb), .4) —— 取自主题变量，合规
                 continue
-            dest.append(f"色值字面量 {m.group(0)} → 违反契约 3")
+            dest.append(f"色值字面量 {val} → 违反契约 3")
 
     # 4/5. 时间轴 + GSAP（封面是静帧，没有时间轴，不作要求）
     if not is_cover and "window.__tl" not in src and "window.__timelines" not in src:
@@ -155,26 +191,120 @@ def check_file(path: str, want_w: int, want_h: int, is_cover: bool = False, lang
         [f"{ref}: {x}" for ref, xs in sheet_out.items() for x in sorted(set(xs))]
 
 
-def code_strings(code: str) -> list[str]:
-    """脚本或样式里的字符串字面量。逐字扫：引号里的 // 和 /* 不是注释，注释里的引号也不是字符串。"""
-    out, i, n = [], 0, len(code)
+def scan_code(code: str) -> tuple[list[tuple[int, int]], list[tuple[int, int]]]:
+    """脚本或样式逐字扫一遍，返回（注释的区间，字符串字面量内容的区间）。
+    引号里的 // 和 /* 不是注释，注释里的引号也不是字符串。"""
+    comments, strings, i, n = [], [], 0, len(code)
     while i < n:
         two = code[i:i + 2]
         if two == "/*":
             j = code.find("*/", i + 2)
-            i = n if j < 0 else j + 2
+            j = n if j < 0 else j + 2
+            comments.append((i, j))
+            i = j
         elif two == "//" and (i == 0 or code[i - 1] != ":"):      # url(http://…) 里的 // 不是注释
             j = code.find("\n", i)
-            i = n if j < 0 else j + 1
+            j = n if j < 0 else j
+            comments.append((i, j))
+            i = j + 1
         elif code[i] in "\"'`":
             q, j = code[i], i + 1
             while j < n and code[j] != q:
                 j += 2 if code[j] == "\\" else 1
-            out.append(code[i + 1:j])
+            strings.append((i + 1, min(j, n)))
             i = j + 1
         else:
             i += 1
+    return comments, strings
+
+
+def code_strings(code: str) -> list[str]:
+    """脚本或样式里的字符串字面量。"""
+    return [code[a:b] for a, b in scan_code(code)[1]]
+
+
+def _blank(text: str, spans: list[tuple[int, int]]) -> str:
+    """把这些区间抹成空格（换行留着），长度不变 —— 后面找到的位置仍是原文的位置。"""
+    chars = list(text)
+    for a, b in spans:
+        for i in range(a, min(b, len(chars))):
+            if chars[i] != "\n":
+                chars[i] = " "
+    return "".join(chars)
+
+
+def _literals(text: str, a: int, b: int) -> list[tuple[int, str]]:
+    """text[a:b] 里的 #hex 与 rgb()/rgba()，[(原文位置, 字面量)]；url(…) 里的不算。"""
+    seg = URL_REF.sub(lambda m: " " * len(m.group(0)), text[a:b])
+    return [(a + m.start(), m.group(0)) for pat in (HEX, RGBA) for m in pat.finditer(seg)]
+
+
+def css_value_spans(text: str, a: int, b: int, inline: bool = False) -> list[tuple[int, str]]:
+    """text[a:b] 是一段 CSS（inline=True 时是 style="…" 里的声明表）：只看声明的值。
+    注释、引号里的字符串（content: "#1" 是画面文字）、url(…) 先抹掉；选择器与 @规则的前导不看。"""
+    seg = CSS_NOISE.sub(lambda m: " " * len(m.group(0)), text[a:b])
+    out, depth, start = [], (1 if inline else 0), 0
+    for i, c in enumerate(seg + ";"):        # 补一个 ;：style="…" 的最后一条声明可以不带分号
+        if c == "{":
+            depth, start = depth + 1, i + 1     # { 前面是选择器 / @media 前导
+        elif c in ";}":
+            colon = seg.find(":", start, i)
+            if depth > 0 and colon >= 0:
+                out += _literals(seg, colon + 1, i)
+            depth, start = (max(depth - 1, 0) if c == "}" else depth), i + 1
+    return [(a + p, v) for p, v in out]
+
+
+def script_value_spans(code: str, a: int, b: int) -> list[tuple[int, str]]:
+    """code[a:b] 是一段（注释已抹掉的）脚本：颜色类属性的值、整串 6 / 8 位色值的字符串、字符串里的 rgb()/rgba()。"""
+    out = []
+    for pat in (JS_PROP, JS_PROP_ARG):
+        for m in pat.finditer(code, a, b):
+            if colourish(m.group(1)):
+                v = JS_VALUE.match(code, m.end(), b)
+                out += _literals(code, v.start(), v.end())
+    for s, e in scan_code(code[a:b])[1]:
+        lit = code[a + s:a + e]
+        if HEX_WHOLE.fullmatch(lit):
+            out.append((a + s, lit))
+        out += [(a + s + m.start(), m.group(0)) for m in RGBA.finditer(lit)]
     return out
+
+
+def colour_spans(text: str, is_css: bool = False) -> list[tuple[int, str]]:
+    """第 3 条要查的色值字面量：[(原文位置, 字面量)]，按位置排好、去重（lessons #151）。
+
+    只在颜色上下文里找：
+      - CSS 声明的值：<style> 块、style="…" 属性、本地样式表（is_css=True）；
+      - 颜色类的标签属性：fill / stroke / stop-color / flood-color / color / bgcolor …（colourish）；
+      - 脚本：赋给颜色类属性的值（{ fill: … }、el.style.color = …、setAttribute('fill', …)），
+        整串就是 #rrggbb / #rrggbbaa 的字符串（调色板），字符串里的 rgb()/rgba()；
+      - 脚本里拼的标记与 CSS 文本（innerHTML 里的 style="…"、fill="…"，cssText）同样按上面几条查。
+    不查：注释（HTML / CSS / JS）、画面文字、选择器（#c13 { … }、querySelector('#c13')、gsap.to('#c13')）、
+    别的字符串（格名「#301–」）、url(#fade)。"""
+    if is_css:
+        return sorted(set(css_value_spans(text, 0, len(text))))
+    t = _blank(text, [m.span() for m in HTML_COMMENT.finditer(text)])
+    out, scripts, gone = [], [], []
+    for m in SCRIPT_OR_STYLE.finditer(t):
+        a, b = m.start(2), m.end(2)
+        if m.group(1).lower() == "style":
+            out += css_value_spans(t, a, b)
+            gone.append((a, b))           # 后面按标签属性扫时不再看 <style> 里的选择器
+        else:
+            gone += [(a + s, a + e) for s, e in scan_code(t[a:b])[0]]     # 脚本注释
+            scripts.append((a, b))
+    t = _blank(t, gone)
+    for a, b in scripts:
+        out += script_value_spans(t, a, b)
+    for m in STYLE_ATTR.finditer(t):
+        g = 1 if m.group(1) is not None else 2
+        out += css_value_spans(t, m.start(g), m.end(g), inline=True)
+    for m in MARKUP_ATTR.finditer(t):
+        g = next(i for i in (2, 3, 4) if m.group(i) is not None)
+        if m.group(1).lower() != "style" and colourish(m.group(1)):
+            out += _literals(t, m.start(g), m.end(g))
+    return sorted(set(out))
 
 
 def shown_text(src: str, sheets: list[tuple[str, str]]) -> str:

@@ -14,7 +14,7 @@
 | | |
 |---|---|
 | **配音** | 默认 **阿里云百炼 `qwen-audio-3.1-tts-flash`**（字级时间戳，18 个实测音色）；也可切 edge-tts（免密钥）或火山引擎语音合成 2.0。三种引擎产出同一种 manifest，下游零改动 |
-| **字幕** | 按词/字级时间戳切块、硬字幕烧录，同时输出 SRT / VTT；数字展开读法（「2026」→「二零二六」）会映射回原文，不会错位；停顿被并进英文词首字母时，块从开口处起；`2.4%`、`X.509` 里的点照留 |
+| **字幕** | 按词/字级时间戳切块、硬字幕烧录，同时输出 SRT / VTT；数字展开读法（「2026」→「二零二六」）会映射回原文，不会错位；停顿被并进英文词首字母（或前 2–3 个字母）时，块从开口处起；`2.4%`、`X.509` 里的点照留 |
 | **画面** | HTML + CSS + GSAP，1920×1080 或竖版；23 个风格模板（8 类）+ 40 多个动效词汇；`style_director.py` 读解说词给每场挑风格与动效强度 |
 | **音画同步** | 场景里写 `B('块文本')` 取该字幕块的起播秒排动画；时长取 MP3 容器时长，拼音轨时每段按同一时长补齐到采样（长片不漂移），字幕收尾取语音真实结束 |
 | **渲染** | 确定性逐帧 seek 截图（不是实时录屏）；1080p / 2K / 4K，30 / 60 fps；可选快门运动模糊；多浏览器进程并行、断点续渲 |
@@ -185,7 +185,7 @@ node scripts/render_video.mjs . --list-profiles      # 看全部档位
 |---|---|---|
 | 配音时 | `tts_build.py` | 字级时间戳是插值的（不在真时间戳的网格上 —— 中文 1/32 秒、英文 0.08 秒，或每字一样长）：打 ⚠，manifest 每段记 `even_timestamps`（`whole` / `tail` / `null`），这一段的字幕和 `B()` 对不上吐字，改写后重配。截断的结果（读流没读到最终帧、0 个字级时间戳、音频短得不像这段文字）重试后非零退出，不进缓存 |
 | 渲染前 | `check_beats_refs.py` | `B()` 引用不到字幕块（否则渲到那一帧才报错） |
-| | `lint_frames.py` | 外链字体 / CDN、色值字面量、墙钟逻辑、CSS transition、字幕带压内容、缺中文字体（画面有中文时）、**搭建期读布局**（连帧引用的本地脚本与本地样式表一起扫） |
+| | `lint_frames.py` | 外链字体 / CDN、色值字面量（只认颜色上下文，id 选择器与注释里的 `#…` 不算）、墙钟逻辑、CSS transition、字幕带压内容、缺中文字体（画面有中文时）、**搭建期读布局**（连帧引用的本地脚本与本地样式表一起扫） |
 | | `check_layout.mjs` | 元素遮挡、出画、侵入字幕带、该对齐没对齐（有出场的场景量 `speech_end` 那一刻） |
 | 渲染后 | `qc_check.py` | 流与时长对齐、音量、抽帧速览图、**单帧跳动**（FAIL）、**场间硬切**（WARN） |
 | 封面 | `check_cover.mjs` | 边距、钩子字号、行宽、孤字、文字重叠 |
@@ -233,7 +233,7 @@ python tests/test_subs_text.py             # 字幕文本规则
 python tests/test_subs_pause_letter.py     # 块起点不落在停顿上（真实时间戳，不联网）
 python tests/test_tts_ali.py               # 阿里 TTS（不联网、不需要密钥）
 python tests/test_tts_chunk_marks.py       # 切块符 | 不送 TTS（三个引擎，不联网）
-python tests/test_lint_frames.py           # lint：搭建期读布局、本地样式表、英文帧不要求中文字体
+python tests/test_lint_frames.py           # lint：搭建期读布局、本地样式表、英文帧不要求中文字体、色值只认颜色上下文
 python tests/test_qc_continuity.py         # 逐帧连续性（缺 numpy / ffmpeg 时跳过端到端段）
 python tests/test_qc_frame_count.py        # 实测帧数：流复制不数帧时解码再数（不跑真的 ffmpeg）
 node   tests/test_beats_norm.mjs           # 节拍匹配

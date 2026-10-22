@@ -1,6 +1,6 @@
 ---
 name: html-to-explainer-video
-version: 2.2.1
+version: 2.2.2
 description: 把任意主题做成讲解/科普视频并渲染成 MP4（HTML/CSS/GSAP 画面 + 确定性逐帧渲染 + 配音（默认阿里云百炼，可切 edge-tts / 火山）+ 词级硬字幕）。触发场景：要做科普/讲解/教学/知识/产品类视频、「讲一下 X 做成视频」、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面/9:16 封面、要用 html-video 那种模板化画面但更稳的音画同步、anything2explainer 换 HTML 渲染，或提到 html-to-explainer-video / HTML 讲解视频 / explainer video / MG 视频。内置 23 个模板风格（8 类）与 40+ 动作词汇的动效库，主题驱动模板编排；支持 4K60、快门运动模糊、多进程提速、断点续渲；流程含六个用户确认点（渲染通道是硬闸门）。独立可移植，不依赖 html-video / anything2explainer。
 agent_created: true
 ---
@@ -519,10 +519,10 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 | `scripts/tts_volcano.py` | **火山引擎语音合成 2.0 接口包**：唯一读 `tts.env` 的地方；`--check` / `--voices` / `--synth`。密钥不回显、异常脱敏（`_redact`） |
 | `scripts/tts_build.py` | 配音合成：阿里云百炼（默认）/ edge-tts / 火山引擎（`--provider`）；缓存/硬超时/退避重试/裁静音，manifest 写两级时长。三引擎 manifest 结构一致；字级时间戳是插值的（不在真时间戳的网格上：中文 1/32 秒、英文 0.08 秒）时打 ⚠、记 `even_timestamps`（lessons #140、#146）；截断的结果（读流没读到最终帧、0 个字级时间戳、音频短得不像这段文字）重试后非零退出，不进缓存，坏的缓存读时认出来重配（lessons #150） |
 | `scripts/timeline_build.py` | layout.json 全局轴 + narration-full.mp3（每段按 layout 槽位补齐到采样，gap 显式插入；总长差 > 1 帧即失败） |
-| `scripts/subs.py` | 字幕三出口（subs.json / srt+vtt / 画面内层由渲染器注入）+ beats.js 节拍器。块首那一项要是阿里把停顿并进了下一个英文词的首字母（「：\|p」+「andas」），块从这一项的结尾起（lessons #144）。英文块保留句内标点，只去块尾的 . , ; :（lessons #145） |
+| `scripts/subs.py` | 字幕三出口（subs.json / srt+vtt / 画面内层由渲染器注入）+ beats.js 节拍器。块首那一项要是阿里把停顿并进了下一个英文词的首字母（「：\|p」+「andas」），块从这一项的结尾起（lessons #144）；并进的是 2–3 个字母（「；\|Not」+「ion」）时，从这一项的结尾往前退 0.125 s（lessons #152）。英文块保留句内标点，只去块尾的 . , ; :（lessons #145） |
 | `scripts/check_beats_refs.py` | **节拍引用构建期校验**：把每帧的 `B()`/`Be()` 全抓出来和自己的 beats 表对一遍。**`B()` 是前缀匹配**（`bt===t ‖ bt.startsWith(t) ‖ t.startsWith(bt)`，归一化不去 `《》「」`），取中间一段会抛错 —— 而那个错**只在渲到那一帧时才炸**（前面几百帧白渲）。本脚本把它提前到构建期：失配打印**该帧可用块列表**，退出码 1，秒级 |
 | `scripts/style_director.py` | ★ **v2.0 主题驱动风格编排**：读 `narration.json` 推断每场角色（开场/陈述/数据/原理/例证/反差/收束/落版），按角色×子类别×时长×内容词打分挑**主风格**，按能量预算给部分场搭**次风格**（局部替换），决定**开场变体**、**场间转场**、**动效强度**，并施加多样性约束（风格数上限/连续同风格上限/开场≠第二场）。产物 `style-plan.json` 的 `why` 字段逐条可解释 |
-| `scripts/lint_frames.py` | **渲染前静态体检**：十条契约违规逐条报（外链字体/色值字面量/墙钟/`B()\|\|N`/字幕带压内容/缺中文字体族（画面有中文时）/搭建期读布局…；连帧引用的本地脚本与本地样式表一起扫）—— 只看**文本规则**，看不见几何 |
+| `scripts/lint_frames.py` | **渲染前静态体检**：十条契约违规逐条报（外链字体/色值字面量（只认颜色上下文：CSS 声明的值、颜色类属性；id 选择器、格名字符串、注释、画面文字里的 `#…` 不算，lessons #151）/墙钟/`B()\|\|N`/字幕带压内容/缺中文字体族（画面有中文时）/搭建期读布局…；连帧引用的本地脚本与本地样式表一起扫）—— 只看**文本规则**，看不见几何 |
 | `scripts/check_layout.mjs` | **渲染前几何体检**（终态；有出场的场景量 `speech_end` 那一刻，lessons #147）：侵入字幕禁区 / 出画 / 文字被遮挡 / 文字重叠 = ERROR；越安全边 / 文字压色块 / 色块重叠 = WARN；疑似未对齐 = INFO。量的是**字墨范围**（Range 逐行）而非元素框。`--only` / `--json` / `--safe-bottom`；有 ERROR 退出码 1 |
 | `scripts/render_video.mjs` | 渲染器：浏览器探测 → 逐场景 seek 截图 →（可选快门运动模糊积分）→ ffmpeg 合成；`--preview N` 快样片，`--only <场景id>` 只重渲指定场景（**仅末场安全**，变短后须清尾部过期帧，见 lessons 45），`--mux-only` 用现有帧重新合成；**帧里有满幅照片就必须换截图模式**（默认 PNG 编码占 96% 帧时间且与并发无关）：`--png-fast` 无损 4.4×，`--jpeg --jpeg-quality 95` 13×；`--crf N` / `--preset <名>` 单独控制成片码率。**v2.0 新增**：`--profile` 成套档位、`--quality`×`--fps` 自由组合、`--shutter` 快门运动模糊、`--workers` 多浏览器进程级并行、`--resume` 断点续渲、`--recycle` 定期重启浏览器。**v2.0.2/.3 新增**：`--shutter-flush` 快门样本磁盘护栏（防峰值堆到数十 GB）、`--shutter-only <id,id>` 场景级快门白名单、`--motion-hold <px>` 位移闸门（配合帧导出的 `window.__motion`）。**v2.0.6 修复**：路径 A（精细 PNG 单浏览器）的看门狗改为**逐帧打点**（此前量的是「单场耗时」，>105s 的场必被误杀）；`--resume` 在路径 A 真正生效（此前加了不报错也不跳帧 = 静默 no-op，而看门狗挂死提示恰恰叫人用它） |
 | `scripts/blur_integrate.py` | **快门运动模糊积分器**（渲染管线第 2 段）：把 Node 侧抓到的 K 张快门样本在**线性光**下逐像素平均 —— 真的积分，不是 blur 滤镜。多进程并行、天然支持断点续渲 |

@@ -17,7 +17,7 @@ picture automatically.
 | | |
 |---|---|
 | **Voice-over** | Defaults to **Alibaba Cloud Model Studio `qwen-audio-3.1-tts-flash`** (character-level timestamps, 18 tested voices). Switch to edge-tts (no key needed) or Volcengine TTS 2.0. All three produce the same manifest, so nothing downstream changes |
-| **Subtitles** | Chunked on word/character timestamps, burned in, and exported as SRT / VTT. Spoken expansions ("2026" read as words) are mapped back to the original text, so subtitles do not drift. A chunk whose first timestamp is a pause merged into the next English word's first letter starts where the word does. Dots inside tokens (`2.4%`, `X.509`) stay |
+| **Subtitles** | Chunked on word/character timestamps, burned in, and exported as SRT / VTT. Spoken expansions ("2026" read as words) are mapped back to the original text, so subtitles do not drift. A chunk whose first timestamp is a pause merged into the next English word's first letter (or first 2–3 letters) starts where the word does. Dots inside tokens (`2.4%`, `X.509`) stay |
 | **Visuals** | HTML + CSS + GSAP at 1920×1080 or portrait; 23 style templates in 8 categories plus a 40+ motion vocabulary; `style_director.py` reads the script and picks a style and motion intensity per scene |
 | **Sync** | Scenes call `B('subtitle chunk')` to get that chunk's start second; scene length is the MP3 container duration, the narration track pads every segment to that same length sample-exactly (no drift in long videos), and the last subtitle ends when speech really ends |
 | **Rendering** | Deterministic per-frame seek and screenshot (not screen recording); 1080p / 2K / 4K at 30 / 60 fps; optional shutter motion blur; parallel browser workers; resumable |
@@ -191,7 +191,7 @@ Useful flags: `--preview 30`, `--only <scene>`, `--workers N`, `--resume`, `--sh
 |---|---|---|
 | Voice-over | `tts_build.py` | Interpolated timestamps (off the grid real ones sit on — 1/32 s for Chinese characters, 0.08 s for English words — or every unit the same length): prints a ⚠ and records `even_timestamps` (`whole` / `tail` / `null`) per manifest item. That segment's subtitles and `B()` beats won't follow the speech; reword it and re-voice. Truncated results (stream ended before the final frame, zero word timestamps, audio far too short for the text) are retried, then exit non-zero and never reach the cache |
 | Before render | `check_beats_refs.py` | `B()` calls that match no subtitle chunk |
-| | `lint_frames.py` | Remote fonts / CDNs, colour literals, wall-clock logic, CSS transitions, content in the subtitle band, missing CJK fonts (when the frame shows Chinese), **layout reads while building** (also scans the local scripts and stylesheets the frame loads) |
+| | `lint_frames.py` | Remote fonts / CDNs, colour literals (in colour contexts only; id selectors and comments are not colours), wall-clock logic, CSS transitions, content in the subtitle band, missing CJK fonts (when the frame shows Chinese), **layout reads while building** (also scans the local scripts and stylesheets the frame loads) |
 | | `check_layout.mjs` | Overlap, out of frame, subtitle-band intrusion, near-miss alignment (scenes with an exit are measured at `speech_end`) |
 | After render | `qc_check.py` | Streams and duration, loudness, contact sheet, **single-frame jumps** (FAIL), **hard cuts between scenes** (WARN) |
 | Covers | `check_cover.mjs` | Margins, hook size, line width, orphans, overlapping text |
@@ -242,7 +242,7 @@ python tests/test_subs_text.py
 python tests/test_subs_pause_letter.py     # chunks start at the word, not at the pause before it (real timestamps, offline)
 python tests/test_tts_ali.py               # offline, no key needed
 python tests/test_tts_chunk_marks.py       # the | chunk separator never reaches TTS (all three engines, offline)
-python tests/test_lint_frames.py
+python tests/test_lint_frames.py           # layout reads, local stylesheets, colour literals only in colour contexts
 python tests/test_qc_continuity.py         # end-to-end part skips without numpy / ffmpeg
 python tests/test_qc_frame_count.py        # frame count falls back to decoding when stream copy counts nothing (no real ffmpeg)
 node   tests/test_beats_norm.mjs

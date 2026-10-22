@@ -15,6 +15,10 @@ beats.js，也不误伤与字体无关的 SVG 几何（getTotalLength / getPoint
 另守一条（lessons #148）：画布、字体栈、色值写在帧引用的本地样式表（common.css）里时照样能查到；
 英文片画面里没有中文，不要求中文字体族。
 
+再守一条（lessons #151）：色值字面量只在颜色上下文里找 —— CSS 声明的值、`style="…"`、颜色类的标签属性
+（fill / stroke / stop-color …）、脚本里赋给颜色类属性的值、整串就是 #rrggbb 的字符串、字符串里的 rgb()/rgba()。
+脚本字符串里的「#301–」、id 选择器「#c13」、注释、画面文字、`url(#fade)` 都不是颜色，不报；真的颜色照旧报。
+
 失败即以非零码退出（CI 直接吃退出码）。
 """
 from __future__ import annotations
@@ -206,6 +210,99 @@ got = issues_for({**VENDOR, "theme.css": THEME, "frames/common.css": COMMON,
                                            .replace('<div class="box">', '<div class="box" data-note="中文备注">')},
                  "a.html", "en")
 check("<title> 与标签属性里的中文不上画面，英文帧不要求中文字体族", got == [], f"得到 {got}")
+
+# ---- 色值字面量只在颜色上下文里找（lessons #151）----
+# 旧代码把 #[0-9a-fA-F]{3,8} 套在整份源码上：脚本字符串里的格名「#301–」、id 选择器「#c13」、注释、画面文字都算色值。
+# 一个中文系列 07-1 的 split1 为此把「'#' + n + '–'」拆开拼（lessons #108 也只能叫人改 id）。
+def colours(got):
+    """lint 结果里报出来的色值（「色值字面量 X →」里的 X）。"""
+    return {x.split("色值字面量 ", 1)[1].split(" →", 1)[0] for x in got if "色值字面量 " in x}
+
+
+def colours_in(body="", markup="", css="", extra=""):
+    html = frame(body, extra)
+    if markup:
+        html = html.replace('<div class="box">内容</div>', '<div class="box">内容</div>\n' + markup)
+    if css:
+        html = html.replace("</style>", "\n" + css + "\n</style>", 1)
+    return colours(issues_for({**VENDOR, "frames/a.html": html}, "a.html"))
+
+
+print("色值：不是颜色的「#…」不报")
+# 07-1 split1 第 95–96 行原样（复现目录 lint-repro 里旧代码报 #301 #601 #901 #c13 四条）
+SPLIT1 = ("function lo(n) { return { 1: '#1–', 301: '#301–', 601: '#601–', 901: '#901–' }[n]; }\n"
+          "  var CUR = '#c13';   // 06-4 G08：格的 id 是 c13，选择器写 '#c13'\n"
+          "  tl.to(CUR, { fill: 'var(--accent)', duration: 0.4 }, 0);")
+NOT_COLOUR = [
+    ("07-1 split1 原样：格名字符串「#301–」、选择器变量 '#c13'、注释里的 '#c13'", dict(body=SPLIT1)),
+    ("脚本字符串里的「#」加数字", dict(body="var t = '#301'; var u = \"#1000 号\"; var v = `#600–#899`;")),
+    ("querySelector / gsap.to 的 id 选择器", dict(body="var el = document.querySelector('#c13'); "
+                                                     "tl.to('#bd1', { x: 10 }, 0); gsap.set(\"#db2\", { opacity: 0 });")),
+    ("脚本注释（含颜色属性的写法）", dict(body="// 选择器写 '#c13'，别写 #fff\n  /* 原稿 #ff0000 */\n"
+                                         "  // 旧写法 { fill: '#f00' }、el.setAttribute('stroke', '#bd1')\n"
+                                         "  /* el.innerHTML = '<rect fill=\"#abc\" style=\"color:#fff\"/>' */")),
+    ("画面文字（HTML 正文、SVG <text>）", dict(markup="<p>节点 #301 与 #c13</p><svg><text x='0' y='0'>#bd1</text></svg>")),
+    ("<style> 里的选择器：id（lessons #108 的 #bd1）、伪类后面的 id、属性选择器", dict(
+        css="#bd1, #c13:hover > .x { opacity: 0; } .y:not(#bad), a:hover #c0de { opacity: 1; } rect[fill=\"#abc\"] { opacity: 0; }")),
+    ("url(#…) 引用渐变 / 图案：CSS、标签属性、脚本", dict(css=".x { fill: url(#fade); }",
+                                                   markup='<rect fill="url(#bad)" stroke="url(\'#cab\')"/>',
+                                                   body="tl.set('.y', { fill: 'url(#dead)' }, 0);")),
+    ("CSS 注释与 content 里的文字", dict(css="/* 原稿 #ff0000 */ .x::after { content: \"#1 #abc\"; }")),
+    ("HTML 注释", dict(markup="<!-- 原稿配色 #ff0000 rgba(214,137,81,.45) -->")),
+    ("脚本注释与画面文字里的 rgba()", dict(body="// 别写 rgba(214,137,81,.45)", markup="<p>rgb(255, 0, 0) 是红色</p>")),
+    ("非颜色属性的值：text / id / label", dict(body="var c = { id: 'c13', text: '#301–', label: '#abc' };")),
+    ("画面文字里大写开头的「Color: #1」", dict(body="var t = { text: 'Color: #1, Border: #c13' };")),
+]
+for label, kw in NOT_COLOUR:
+    got = colours_in(**kw)
+    check(f"不报：{label}", got == set(), f"报了 {sorted(got)}")
+
+print("色值：真的颜色照旧报")
+IS_COLOUR = [
+    ("帧 <style> 的声明", dict(css=".x { color: #ff0000; background: linear-gradient(#0d0f14, #1b2130); }"),
+     {"#ff0000", "#0d0f14", "#1b2130"}),
+    ("帧 <style> 的自定义属性与 rgba()", dict(css=":root { --glow: #E8912B; } .y { box-shadow: 0 0 9px rgba(6, 37, 51, 0.2); }"),
+     {"#E8912B", "rgba(6, 37, 51, 0.2)"}),
+    ("<style> 里 id 选择器后面的值", dict(css="#c13 { fill: #bd1; }"), {"#bd1"}),
+    ("style=\"…\" 属性（含自定义属性）", dict(markup='<div style="left: 3px; color:#f00; --stamp: #0E7C6B">x</div>'),
+     {"#f00", "#0E7C6B"}),
+    ("SVG 颜色属性 fill / stroke / stop-color", dict(markup='<rect fill="#abc"/><line stroke=\'#123456\'/>'
+                                                        '<stop offset="0" stop-color="#fff"/><circle fill=#c13 />'),
+     {"#abc", "#123456", "#fff", "#c13"}),
+    ("SVG 属性里的 rgba()", dict(markup='<rect fill="rgba(184, 58, 42, 0.12)"/>'), {"rgba(184, 58, 42, 0.12)"}),
+    ("gsap 补间的 fill / stroke / color", dict(body="tl.to('.x', { fill: '#f00' }, 0); gsap.set('.y', { stroke: \"#123\" });"
+                                                  " tl.to('.z', { color: '#c13', duration: 1 }, 0);"),
+     {"#f00", "#123", "#c13"}),
+    ("backgroundColor / borderTopColor / stopColor / background", dict(
+        body="tl.set('.a', { backgroundColor: '#0f0', borderTopColor: '#00f', stopColor: '#fff' }); "
+             "tl.set('.b', { background: 'linear-gradient(#a00, #0a0)' });"),
+     {"#0f0", "#00f", "#fff", "#a00", "#0a0"}),
+    ("gsap attr 里带引号的 'stop-color'", dict(body="tl.to('#g1', { attr: { 'stop-color': '#abc' } }, 0);"), {"#abc"}),
+    ("setAttribute('fill', …) / style.setProperty('--x', …)", dict(
+        body="el.setAttribute('fill', '#bd1'); el.style.setProperty('--accent', '#f0f0f0');"),
+     {"#bd1", "#f0f0f0"}),
+    ("赋值 el.style.color = … / ctx.fillStyle = …", dict(body="el.style.color = '#c13'; ctx.fillStyle = '#fff';"),
+     {"#c13", "#fff"}),
+    ("三元表达式的两支", dict(body="tl.set('.x', { fill: on ? '#f00' : '#0f0' });"), {"#f00", "#0f0"}),
+    ("同一行的选择器不报、颜色报", dict(body="tl.to('#c13', { fill: '#f00' }, 0);"), {"#f00"}),
+    ("调色板：整串就是 #rrggbb / #rrggbbaa 的字符串", dict(
+        body="var CREAM = \"#F4EFE4\"; var P = ['#4e79a7', '#f28e2b80'];"), {"#F4EFE4", "#4e79a7", "#f28e2b80"}),
+    ("字符串里的 rgba()：存进变量也报，纯黑白阴影照旧放行", dict(
+        body="var GLOW = '0 0 40px rgba(214,137,81,.45)'; var S = 'rgba(0,0,0,.4)';"), {"rgba(214,137,81,.45)"}),
+    ("脚本拼的标记：innerHTML 里的 style 与 fill", dict(
+        body="el.innerHTML = '<span style=\"color:#f00\">x</span><rect fill=\"#0f0\"/>';"), {"#f00", "#0f0"}),
+    ("脚本拼的 CSS 文本：cssText", dict(body="el.style.cssText = 'left:3px;border:1px solid #abcdef';"), {"#abcdef"}),
+]
+for label, kw, want in IS_COLOUR:
+    got = colours_in(**kw)
+    check(f"报：{label}", got == want, f"想要 {sorted(want)}，报了 {sorted(got)}")
+
+got = issues_for({**VENDOR, "theme.css": THEME,
+                  "frames/common.css": COMMON + "#bd1 { opacity: 0; } /* #ff0000 */ .x::after { content: '#1'; }"
+                                                " .y { border-color: #c13; fill: url(#fade); }",
+                  "frames/a.html": EN_FRAME}, "a.html", "en")
+check("本地样式表：id 选择器、注释、content、url(#…) 不报，声明里的色值报",
+      colours(got) == {"#c13"} and any("#c13" in x and "common.css" in x for x in got), f"得到 {got}")
 
 print("共享样式表的问题只报一次")
 with tempfile.TemporaryDirectory() as d:
