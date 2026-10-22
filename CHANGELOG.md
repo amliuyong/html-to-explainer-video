@@ -5,6 +5,47 @@
 
 ---
 
+## [2.2.0] — 2026-10-22
+
+第一次用本技能做英文片（cove-lake 的 72 秒宣传片）碰到的五个问题。英文片的字幕口径变了（保留句内标点），所以升次版本号。
+
+### 变更
+
+- **英文片的字幕保留句内标点**（lessons #145，2026-10-22 用户拍板）：`project.json` 的 `lang` 是 `en` 时，没有中文的块在屏幕文本
+  （字幕、SRT / VTT、`subs.json`）里保留逗号、冒号、分号与千分位，只去块尾的 `. , ; : …`，`? !` 留着。原来与中文同一条规则全删，
+  「Kafka, a warehouse」上屏成「Kafka a warehouse」，「1,000」成「1000」；GIF 这类没有声音的投放里读不通。
+  中文片一块都不变，哪怕某一块全是英文（lessons #88）。
+
+### 修复
+
+- **切块符去掉后英文词连在一起**（lessons #145）：`strip_chunk_marks` 在 `|` 左边是英文后面的半角句读（`. , ; : ! ?` 或右括号）、
+  右边是字母或数字时补一个空格（引号、省略号后面也补）。原来只在两边都是字母或数字时补，「minutes.|Today」送给 TTS 成了「minutes.Today」。
+  别的 ASCII 符号（「TCP/|IP」「Data-|Intensive」「(|Kafka」）、全角标点、中文后面的半角标点照旧直接连上。
+- **英文段被误报「字级时间戳是插值的」**（lessons #146）：阿里给英文的是词级时间戳，真的落在 0.08 秒网格上，不在 1/32 秒上；
+  一部 8 段的英文片 8 段全打 ⚠，其实只有 3 段是插值的。`tts_build` 认两个网格，每段取落点多的那个再判。
+- **`check_layout` 对有出场的场景什么都没量**（lessons #147）：它量时间轴末尾，那时出场已经把东西淡没了，量到 0 个元素、0 个问题。
+  帧有出场（`__SEG__.gap > 0`）时改量 `speech_end` 那一刻（报告的 `measuredAt`）；量到 0 个元素时报 WARN「没量到元素」。
+- **`lint_frames` 不看帧引用的本地样式表；英文片也要求中文字体**（lessons #148）：顺着 `<link rel="stylesheet">` 扫本地样式表
+  （`theme.css` 除外），画布、外链 `@import`、色值、transition、字体栈都查，出自样式表的问题记在样式表名下、只报一次；
+  字幕带的 `bottom` 启发式只看帧自己的 CSS。中文字体族只在画面上有中文（注释、`<title>`、属性不算）或 `lang` 是 `zh` 时要求。
+- **QC 跳过帧数校验**（lessons #149）：有的 ffmpeg 构建（Ubuntu 24.04 的 6.1.1）流复制时不数帧；`qc_check` 改为流复制没给帧数时解码一遍再数。
+
+### 已有项目
+
+- **中文片**：字幕不变。重跑 `tts_build`，只有「英文词 + 半角句读 + `|` + 英文词」的段（例如「PostgreSQL,|MySQL」）换缓存签名、重配一次，
+  送出去的文本多一个空格；别的段照旧命中缓存。
+- **英文片**：重跑 `subs.py`，屏幕文本补回句内标点，块的起止时刻不变，`B()` 查到的还是同一块（`norm()` 本来就去标点）。
+  `audio-manifest.json` 的 `even_timestamps` 要重跑 `tts_build`（命中缓存，不重配）才会刷新。
+- 有出场的帧，`check_layout` 现在真的量到东西了：原来全绿的工程可能冒出 ERROR，那是一直存在、以前没量到的问题。
+- 帧引用了本地样式表的工程，`lint_frames` 可能多出样式表里的色值、transition、外链 `@import`（以前没扫），每个样式表每条只报一次。
+
+### 测试
+
+- 新增 `tests/test_qc_frame_count.py`、`tests/test_layout_exit.mjs`，并接进 CI；`test_subs_text.py`、`test_tts_chunk_marks.py`、
+  `test_tts_even_timestamps.py`、`test_lint_frames.py` 加了英文与本地样式表的用例。每个新用例都在旧代码上跑过，必须变红：
+  `test_subs_text.py` 6 项、`test_tts_chunk_marks.py` 6 项、`test_tts_even_timestamps.py` 1 项、`test_lint_frames.py` 8 项
+  （这两个要先去掉旧代码不认的新参数）、`test_qc_frame_count.py` 3 项、`test_layout_exit.mjs` 6 项。
+
 ## [2.1.3] — 2026-10-22
 
 ### 修复

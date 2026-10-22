@@ -115,13 +115,22 @@ jobs:
       - name: Seek history regression test
         run: node tests/test_seek_history.mjs
 
-      # --- 搭建期读布局：--workers 并行渲染下每 N 帧跳一下，单页检查全绿（lessons #134）---
+      # --- 搭建期读布局：--workers 并行渲染下每 N 帧跳一下，单页检查全绿（lessons #134）；
+      #     顺着 <link rel=stylesheet> 扫本地样式表，英文帧不要求中文字体族（lessons #148）---
       - name: Frame lint regression test
         run: python tests/test_lint_frames.py
 
       # --- 逐帧连续性：单帧跳动 / 场间硬切（B 段缺 numpy 或 ffmpeg 时自动跳过）---
       - name: QC continuity regression test
         run: python tests/test_qc_continuity.py
+
+      # --- QC 实测帧数：有的 ffmpeg 构建流复制时不数帧，要解码一遍再数，否则帧数校验被静默跳过（lessons #149）---
+      - name: QC frame count regression test
+        run: python tests/test_qc_frame_count.py
+
+      # --- 几何体检量出场之前那一刻：轴末已经出场、全淡没了，量到 0 个元素也是「全绿」（lessons #147）---
+      - name: Layout check before exit regression test
+        run: node tests/test_layout_exit.mjs
 
       # --- 拼音轨不漂移：每段占满 layout 槽位，beep ±10 ms（lessons #136）；末帧不是缓冲不够 libmp3lame 的半截帧
       #     （lessons #141）。B、C 段缺 numpy 或 ffmpeg 时自动跳过 ---

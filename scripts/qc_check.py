@@ -101,20 +101,27 @@ def count_video_frames(ff, path):
     字段前缀都随 ffmpeg 构建而变** —— 有人用 gyan.dev 7.0 full build 时 stderr 里
     一条 `frame=` 都没有，帧数校验被静默跳过（QC 里只剩一句 WARN）。
     `-f null -` 的 null muxer 不产出任何字节，所以不会污染 stdout 的进度流。
+
+    ★ 先流复制（快）；两条通道都没给帧数时再解码一遍（lessons #149）。有的构建（Ubuntu 24.04 的
+    ffmpeg 6.1.1）流复制时根本不数帧：`-progress` 只有 `progress=continue/end`，stats 行也没有
+    `frame=`，帧数校验就被跳过。解码时一定数帧，代价是把视频流解一遍（1080p 约每秒几百帧）。
     """
-    r = subprocess.run([ff, "-hide_banner", "-nostdin", "-progress", "pipe:1",
-                        "-i", path, "-map", "0:v:0", "-c", "copy", "-f", "null", "-"],
-                       capture_output=True, text=True, errors="replace")
-    n = None
-    for stream in (r.stdout, r.stderr):
-        for line in (stream or "").splitlines():
-            line = line.strip()
-            if line.startswith("frame="):
-                try:
-                    n = int(line.split("=", 1)[1].strip().split()[0])
-                except (IndexError, ValueError):
-                    pass
-    return n
+    for codec in (["-c", "copy"], []):
+        r = subprocess.run([ff, "-hide_banner", "-nostdin", "-progress", "pipe:1",
+                            "-i", path, "-map", "0:v:0", *codec, "-f", "null", "-"],
+                           capture_output=True, text=True, errors="replace")
+        n = None
+        for stream in (r.stdout, r.stderr):
+            for line in (stream or "").splitlines():
+                line = line.strip()
+                if line.startswith("frame="):
+                    try:
+                        n = int(line.split("=", 1)[1].strip().split()[0])
+                    except (IndexError, ValueError):
+                        pass
+        if n or (n == 0 and not codec):
+            return n          # 解码那一遍数出 0 帧就是 0 帧：交给帧数校验 FAIL，不当作「数不出来」
+    return None
 
 
 def extract_frame(ff, video, sec, out_png):
@@ -261,7 +268,7 @@ def main() -> int:
             got = count_video_frames(ff, video)
             if got is None:
                 warns.append(
-                    "无法实测视频流帧数（跳过帧数校验）—— 说明本机 ffmpeg 两条通道都"
+                    "无法实测视频流帧数（跳过帧数校验）—— 说明本机 ffmpeg 流复制与解码两遍、两条通道都"
                     "没吐出 frame= 计数（`-progress pipe:1` 与 stats 行都试过了）。"
                     "**请把这条连同 `ffmpeg -version` 首行一起反馈**，这是环境差异不是画面问题。"
                     "临时替代：跑 `python scripts/frame_at.py --project . --list` 看 layout 期望帧数，"

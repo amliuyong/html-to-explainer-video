@@ -14,12 +14,14 @@ lint_frames.py —— 场景帧静态体检（渲染前跑，比渲完全片再�
   7. CSS transition 入场
   8. B() 兜底：B('x') || 数字
   9. 字幕带禁区：CSS 里 bottom < 176px 的规则且带内容属性（启发式，转人工确认）
- 10. 字体栈：必须含中文字体族（Microsoft YaHei / PingFang 等）
+ 10. 字体栈：画面里有中文（或 project.json 的 lang 是 zh）时必须含中文字体族（Microsoft YaHei / PingFang 等）
  11. 搭建期读布局：getBoundingClientRect / getBBox / offsetHeight / clientWidth …
      —— --workers 并行渲染下各进程量到的值不一致，成片「每 N 帧跳一下」（lessons #134）
 
 第 6、11 条连帧引用的**本地脚本**（<script src="kit.js"> 这类共享搭建器）一起扫；
 技能自带的 gsap.min.js / motion.js 与 subs.py 生成的 *.beats.js 不扫。
+第 1、2、3、7、10 条连帧引用的**本地样式表**（<link rel="stylesheet" href="common.css">）一起扫，
+出自样式表的问题记在样式表名下、几个帧共用也只报一次；theme.css 是色值的唯一来源，不扫（lessons #148）。
 
 用法：
   python lint_frames.py --project .            # 全量
@@ -49,43 +51,58 @@ LAYOUT_READ = re.compile(r"\.(getBoundingClientRect|getClientRects|getBBox|getCo
                          r"|\.(offset|client|scroll)(Width|Height|Top|Left)\b")
 LOCAL_SCRIPT = re.compile(r"<script[^>]+src\s*=\s*[\"']([^\"']+)[\"']", re.I)
 VENDOR_SCRIPT = re.compile(r"(^|/)(gsap(\.min)?\.js|motion\.js|[^/]+\.beats\.js)$")
+LOCAL_STYLE = re.compile(r"<link\b[^>]*\brel\s*=\s*[\"']?stylesheet\b[^>]*>", re.I)
+HREF = re.compile(r"\bhref\s*=\s*(?:\"([^\"]+)\"|'([^']+)'|([^\s>]+))", re.I)
+CJK_CHAR = re.compile(r"[\u3400-\u9fff\uf900-\ufaff\u3000-\u303f\uff00-\uffef]")
+# 画面上的文字：<body> 里标签之间的文字，加上脚本与样式里的字符串（JS 设的 textContent、CSS 的 content）。
+# 注释、<title>、标签属性不算。
+HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
+SCRIPT_OR_STYLE = re.compile(r"<(script|style)\b[^>]*>(.*?)</\1\s*>", re.S | re.I)
+BODY = re.compile(r"<body\b[^>]*>(.*)</body\s*>", re.S | re.I)
+TAG = re.compile(r"<[^>]+>")
 
 # 允许出现的颜色字面量（阴影/透视遮罩，不参与配色语义）
 ALLOWED_RGBA_PREFIX = ("rgba(0,0,0", "rgba(0, 0, 0", "rgba(255,255,255", "rgba(255, 255, 255")
 
 
-def check_file(path: str, want_w: int, want_h: int, is_cover: bool = False) -> list[str]:
+def check_file(path: str, want_w: int, want_h: int, is_cover: bool = False, lang: str = "zh") -> list[str]:
     src = open(path, encoding="utf-8").read()
     name = os.path.basename(path)
     out: list[str] = []
+    sheets = local_refs(path, src, out, "样式表")
+    sheet_out: dict[str, list[str]] = {}    # 出自共享样式表的问题记在样式表名下：几个帧共用一份，只报一次
+    frame_and_css = "\n".join([src] + [text for _, text in sheets])
 
     # 1. 画布（封面有自己的规格：16:9 版 1920×1080 / 3:4 版 1440×1080）
     if is_cover:
-        if not re.search(r"width\s*:\s*\d+px", src) or not re.search(r"height\s*:\s*\d+px", src):
+        if not re.search(r"width\s*:\s*\d+px", frame_and_css) or not re.search(r"height\s*:\s*\d+px", frame_and_css):
             out.append("封面：未见 width/height 像素声明")
-    elif not re.search(rf"width\s*:\s*{want_w}px", src) or not re.search(rf"height\s*:\s*{want_h}px", src):
+    elif not re.search(rf"width\s*:\s*{want_w}px", frame_and_css) or not re.search(rf"height\s*:\s*{want_h}px", frame_and_css):
         out.append(f"画布：未见 width:{want_w}px / height:{want_h}px 声明")
 
     # 2. 外部字体 / 远程资源
     if FONT_LINK.search(src):
         out.append("外部 <link href=http…>（字体/样式）→ 违反契约 2（渲染器 5s 字体硬顶）")
-    if IMPORT_HTTP.search(src):
-        out.append("@import url(http…) → 违反契约 2")
+    for label, text in [(None, src)] + sheets:
+        if IMPORT_HTTP.search(text):
+            (sheet_out.setdefault(label, []) if label else out).append("@import url(http…) → 违反契约 2")
     if GSAP_CDN.search(src):
         out.append("<script src=http…> → 违反契约 8（必须用 ../assets/gsap.min.js）")
 
-    # 3. 色值字面量
-    for m in HEX.finditer(src):
-        val = m.group(0)
-        # 允许在注释里说明用（如出处署名），其余算违规
-        out.append(f"色值字面量 {val} → 违反契约 3（颜色只取 theme.css 变量）")
-    for m in RGBA.finditer(src):
-        v = m.group(0).replace(" ", "").lower()
-        if v.startswith(ALLOWED_RGBA_PREFIX):
-            continue
-        if "var(" in v:      # rgba(var(--signal-rgb), .4) —— 取自主题变量，合规
-            continue
-        out.append(f"色值字面量 {m.group(0)} → 违反契约 3")
+    # 3. 色值字面量（帧本身 + 引用的本地样式表）
+    for label, text in [(None, src)] + sheets:
+        dest = sheet_out.setdefault(label, []) if label else out
+        for m in HEX.finditer(text):
+            val = m.group(0)
+            # 允许在注释里说明用（如出处署名），其余算违规
+            dest.append(f"色值字面量 {val} → 违反契约 3（颜色只取 theme.css 变量）")
+        for m in RGBA.finditer(text):
+            v = m.group(0).replace(" ", "").lower()
+            if v.startswith(ALLOWED_RGBA_PREFIX):
+                continue
+            if "var(" in v:      # rgba(var(--signal-rgb), .4) —— 取自主题变量，合规
+                continue
+            dest.append(f"色值字面量 {m.group(0)} → 违反契约 3")
 
     # 4/5. 时间轴 + GSAP（封面是静帧，没有时间轴，不作要求）
     if not is_cover and "window.__tl" not in src and "window.__timelines" not in src:
@@ -96,14 +113,16 @@ def check_file(path: str, want_w: int, want_h: int, is_cover: bool = False) -> l
     # 6/7. 墙钟 / transition
     if WALLCLOCK.search(src):
         out.append("疑似墙钟逻辑（setInterval / setTimeout / rAF）→ seek 渲染下必然失控")
-    if CSS_TRANSITION.search(src):
-        out.append("CSS transition: → 逐帧 seek 不生效，入场必须用 GSAP")
+    for label, text in [(None, src)] + sheets:
+        if CSS_TRANSITION.search(text):
+            (sheet_out.setdefault(label, []) if label else out).append("CSS transition: → 逐帧 seek 不生效，入场必须用 GSAP")
 
     # 8. B() 兜底
     if B_FALLBACK.search(src):
         out.append("B('…') || 数字 兜底写法 → 禁止（beats 缺失要在构建期暴露）")
 
-    # 9. 字幕带禁区（启发式）
+    # 9. 字幕带禁区（启发式，只看帧自己的 CSS）：共享样式表里的 bottom 多是卡片内边距一类的相对定位，
+    #    逐帧报会把一条规则报成几十条；字幕带的几何以 check_layout 实测为准（lessons #148）
     for m in BOTTOM_RULE.finditer(src):
         v = int(m.group(1))
         unit = m.group(2)
@@ -116,12 +135,13 @@ def check_file(path: str, want_w: int, want_h: int, is_cover: bool = False) -> l
     for m in re.finditer(r"bottom\s*:\s*calc\([^)]*\)", src):
         out.append(f"bottom:calc(…) 请人工核对是否 ≥176px → {m.group(0)[:70]}")
 
-    # 10. 中文字体栈
-    if CJK_FONT.search(src) is None:
+    # 10. 中文字体栈：画面里有中文才需要（英文片不必为它挂中文字体，lessons #148）
+    needs_cjk = lang.lower().startswith("zh") or CJK_CHAR.search(shown_text(src, sheets)) is not None
+    if needs_cjk and CJK_FONT.search(frame_and_css) is None:
         out.append("字体栈里没看到中文字体族 → 可能落到默认字体")
 
     # 11. 搭建期读布局（帧内联脚本 + 引用的本地脚本）
-    for label, text in [(None, src)] + local_scripts(path, src, out):
+    for label, text in [(None, src)] + local_refs(path, src, out, "脚本"):
         where = f"（{label}）" if label else ""
         m = LAYOUT_READ.search(text)
         if m:
@@ -131,19 +151,59 @@ def check_file(path: str, want_w: int, want_h: int, is_cover: bool = False) -> l
         if label and WALLCLOCK.search(text):
             out.append(f"疑似墙钟逻辑（setInterval / setTimeout / rAF）{where} → seek 渲染下必然失控")
 
-    return [f"{name}: {x}" for x in sorted(set(out))]
+    return [f"{name}: {x}" for x in sorted(set(out))] + \
+        [f"{ref}: {x}" for ref, xs in sheet_out.items() for x in sorted(set(xs))]
 
 
-def local_scripts(path: str, src: str, out: list[str]) -> list[tuple[str, str]]:
-    """帧引用的本地脚本 [(相对路径, 内容)]；不存在的记进 out。远程脚本由第 5 条管。"""
+def code_strings(code: str) -> list[str]:
+    """脚本或样式里的字符串字面量。逐字扫：引号里的 // 和 /* 不是注释，注释里的引号也不是字符串。"""
+    out, i, n = [], 0, len(code)
+    while i < n:
+        two = code[i:i + 2]
+        if two == "/*":
+            j = code.find("*/", i + 2)
+            i = n if j < 0 else j + 2
+        elif two == "//" and (i == 0 or code[i - 1] != ":"):      # url(http://…) 里的 // 不是注释
+            j = code.find("\n", i)
+            i = n if j < 0 else j + 1
+        elif code[i] in "\"'`":
+            q, j = code[i], i + 1
+            while j < n and code[j] != q:
+                j += 2 if code[j] == "\\" else 1
+            out.append(code[i + 1:j])
+            i = j + 1
+        else:
+            i += 1
+    return out
+
+
+def shown_text(src: str, sheets: list[tuple[str, str]]) -> str:
+    """画面上可能出现的文字：<body> 里标签之间的文字 + 脚本与样式里的字符串字面量（textContent、CSS 的 content）。
+    注释、<title>、标签属性不算 —— 中文注释不上画面。用来判断要不要中文字体族（lessons #148）。"""
+    html = HTML_COMMENT.sub("", src)
+    code = [m.group(2) for m in SCRIPT_OR_STYLE.finditer(html)] + [text for _, text in sheets]
+    m = BODY.search(html)
+    markup = TAG.sub(" ", SCRIPT_OR_STYLE.sub("", m.group(1) if m else html))
+    return "\n".join([markup] + [lit for c in code for lit in code_strings(c)])
+
+
+def local_refs(path: str, src: str, out: list[str], kind: str) -> list[tuple[str, str]]:
+    """帧引用的本地脚本或样式表 [(相对路径, 内容)]；不存在的记进 out。远程的由第 2、5 条管。
+    脚本跳过技能自带的 gsap.min.js / motion.js 与 *.beats.js；样式表跳过 theme.css（色值的唯一来源）。"""
+    if kind == "脚本":
+        refs = [m.group(1) for m in LOCAL_SCRIPT.finditer(src)]
+        skip = lambda ref: VENDOR_SCRIPT.search(ref)
+    else:
+        refs = [next(g for g in m.groups() if g) for m in map(HREF.search, LOCAL_STYLE.findall(src)) if m]
+        skip = lambda ref: os.path.basename(ref) == "theme.css"
     found = []
-    for m in LOCAL_SCRIPT.finditer(src):
-        ref = m.group(1).split("?")[0]
-        if re.match(r"^[a-z]+:", ref, re.I) or VENDOR_SCRIPT.search(ref):
+    for raw in refs:
+        ref = raw.split("?")[0]
+        if re.match(r"^[a-z]+:", ref, re.I) or skip(ref):
             continue
         p = os.path.normpath(os.path.join(os.path.dirname(path), ref))
         if not os.path.isfile(p):
-            out.append(f"引用的本地脚本不存在：{ref}")
+            out.append(f"引用的本地{kind}不存在：{ref}")
             continue
         found.append((ref, open(p, encoding="utf-8", errors="replace").read()))
     return found
@@ -174,8 +234,10 @@ def main() -> int:
 
     all_issues: list[str] = []
     for n in names:
-        all_issues += check_file(os.path.join(frames_dir, n), W, H, is_cover=n.startswith("cover_"))
+        all_issues += check_file(os.path.join(frames_dir, n), W, H, is_cover=n.startswith("cover_"),
+                                 lang=str(pj.get("lang", "zh")))
 
+    all_issues = list(dict.fromkeys(all_issues))     # 共享样式表的问题，每个引用它的帧都会带回来一份
     print(f"[lint] 检查 {len(names)} 个帧 · 画布 {W}×{H}")
     if not all_issues:
         print("[lint] ✓ 无契约违规")

@@ -189,10 +189,10 @@ Useful flags: `--preview 30`, `--only <scene>`, `--workers N`, `--resume`, `--sh
 
 | Stage | Command | Catches |
 |---|---|---|
-| Voice-over | `tts_build.py` | Interpolated character timestamps (off the 1/32 s grid, or every character the same length): prints a ⚠ and records `even_timestamps` (`whole` / `tail` / `null`) per manifest item. That segment's subtitles and `B()` beats won't follow the speech; reword it and re-voice |
+| Voice-over | `tts_build.py` | Interpolated timestamps (off the grid real ones sit on — 1/32 s for Chinese characters, 0.08 s for English words — or every unit the same length): prints a ⚠ and records `even_timestamps` (`whole` / `tail` / `null`) per manifest item. That segment's subtitles and `B()` beats won't follow the speech; reword it and re-voice |
 | Before render | `check_beats_refs.py` | `B()` calls that match no subtitle chunk |
-| | `lint_frames.py` | Remote fonts / CDNs, colour literals, wall-clock logic, CSS transitions, content in the subtitle band, missing CJK fonts, **layout reads while building** (also scans local scripts the frame loads) |
-| | `check_layout.mjs` | Overlap, out of frame, subtitle-band intrusion, near-miss alignment |
+| | `lint_frames.py` | Remote fonts / CDNs, colour literals, wall-clock logic, CSS transitions, content in the subtitle band, missing CJK fonts (when the frame shows Chinese), **layout reads while building** (also scans the local scripts and stylesheets the frame loads) |
+| | `check_layout.mjs` | Overlap, out of frame, subtitle-band intrusion, near-miss alignment (scenes with an exit are measured at `speech_end`) |
 | After render | `qc_check.py` | Streams and duration, loudness, contact sheet, **single-frame jumps** (FAIL), **hard cuts between scenes** (WARN) |
 | Covers | `check_cover.mjs` | Margins, hook size, line width, orphans, overlapping text |
 
@@ -244,9 +244,11 @@ python tests/test_tts_ali.py               # offline, no key needed
 python tests/test_tts_chunk_marks.py       # the | chunk separator never reaches TTS (all three engines, offline)
 python tests/test_lint_frames.py
 python tests/test_qc_continuity.py         # end-to-end part skips without numpy / ffmpeg
+python tests/test_qc_frame_count.py        # frame count falls back to decoding when stream copy counts nothing (no real ffmpeg)
 node   tests/test_beats_norm.mjs
 node   tests/test_page_probe_escapes.mjs   # page-evaluated source strings keep their regex escapes
 node   tests/test_seek_history.mjs         # renders do not depend on seek history (skips without a browser)
+node   tests/test_layout_exit.mjs          # the layout check measures before the exit transition (skips without a browser)
 ```
 
 CI (`.github/workflows/ci.yml`) runs these on Ubuntu and Windows with Python 3.9 and 3.13 with `HX_NO_SKIP=1`:

@@ -11,14 +11,21 @@
 以及给下游读的 subs.json。任何一处把小数点当标点删掉，屏幕上就会出现
 「念 2.4%、写 24%」这种差一个数量级的假数字，或者「ASN.1」写成「ASN1」；这类错不会报错，只会静静地骗人。
 
+另守一条（lessons #145）：英文片（project.json 的 lang 是 en）里没有中文的块保留句内标点，只去块尾的 . , ; : …；
+中文片一块都不变。
+
 失败即以非零码退出（CI 直接吃退出码）。
 """
 from __future__ import annotations
 
 import importlib.util
+import io
+import json
 import os
 import re
 import sys
+import tempfile
+from contextlib import redirect_stdout
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -123,6 +130,55 @@ def _src(rel):
 
 check("new_project.py 占位节拍的 norm() 与 subs.py 一致",
       _norm_src(_src("scripts/new_project.py")), _norm_src(_src("scripts/subs.py")))
+
+# ---- 英文片的英文块：句内标点留着，块尾的 . , ; : … 去掉（2026-10-22 用户拍板，lessons #145）----
+print("英文片的屏幕文本 clean_sub_text(keep_punct=True)")
+en = lambda t: subs.clean_sub_text(t, "en", keep_punct=True)
+check("句内逗号留着", en("Today it takes Kafka, a warehouse,"), "Today it takes Kafka, a warehouse")
+check("句内冒号留着", en("Declare a source: MySQL, PostgreSQL,"), "Declare a source: MySQL, PostgreSQL")
+check("块尾句号去掉", en("should be queryable in minutes."), "should be queryable in minutes")
+check("块尾冒号去掉", en("cove-lake:"), "cove-lake")
+check("问号留着", en("Is it fast?"), "Is it fast?")
+check("千分位逗号留着", en("1,000 changes per second."), "1,000 changes per second")
+check("词里的点留着、省略号去掉", en("in 2.6 minutes..."), "in 2.6 minutes")
+check("块尾的「…」也去掉", en("and then…"), "and then")
+check("切块符与多余空白", en("one |  two"), "one two")
+print("中文片不变（lessons #88）")
+check("中文片里全是英文的块照旧全删", subs.clean_sub_text("Kafka, Flink, Paimon.", "en"), "Kafka Flink Paimon")
+check("中文片里全角标点的英文块照旧全删", subs.clean_sub_text("Kafka，Paimon。", "en"), "KafkaPaimon")
+check("中文块照旧全删", subs.clean_sub_text("工具：pandas，很好用。"), "工具pandas很好用")
+
+print("subs.py main()：按 project.json 的 lang 选规则")
+
+
+def _screen_texts(lang):
+    """跑真的 subs.py，返回屏幕文本。词级时间戳每词 0.24 s（在 0.08 秒网格上）。"""
+    chunks = ["Today it takes Kafka, a warehouse,", "and a lake to get there."]
+    words = " ".join(chunks).split()
+    bounds = [{"text": w, "offset_sec": round(0.24 * i, 2), "duration_sec": 0.24} for i, w in enumerate(words)]
+    with tempfile.TemporaryDirectory() as proj:
+        def put(name, obj):
+            with open(os.path.join(proj, name), "w", encoding="utf-8") as f:
+                json.dump(obj, f, ensure_ascii=False)
+        put("project.json", {"slug": "t", "fps": 30, "lang": lang})
+        put("narration.json", [{"id": "s1", "text": " |".join(chunks)}])
+        put("audio-manifest.json", {"trimmed": True, "items": [
+            {"id": "s1", "duration_sec": 3.4, "lead_cut_sec": 0.0, "container_duration_sec": 3.4,
+             "speech_end_sec": 3.36, "boundaries": bounds}]})
+        put("layout.json", {"s1": {"start_sec": 0.0}, "_total": {"gap_sec": 0.0}})
+        argv = sys.argv
+        sys.argv = ["subs.py", "--project", proj]
+        try:
+            with redirect_stdout(io.StringIO()):
+                subs.main()
+        finally:
+            sys.argv = argv
+        out = json.load(open(os.path.join(proj, "subs.json"), encoding="utf-8"))
+    return [b["text"] for b in out["segments"][0]["blocks"]]
+
+
+check("lang: en → 英文块保留句内标点", _screen_texts("en"), ["Today it takes Kafka, a warehouse", "and a lake to get there"])
+check("lang: zh → 照 #88 全删", _screen_texts("zh"), ["Today it takes Kafka a warehouse", "and a lake to get there"])
 
 # ---- 构建期校验 check_beats_refs.norm：与 beats.js 的 norm() 同规则 ----
 print("check_beats_refs.norm")

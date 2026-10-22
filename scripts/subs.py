@@ -97,6 +97,8 @@ def split_chunks(text: str):
 # 切块符 `|` 的另一半：送 TTS 之前去掉（lessons #142）。和 split_chunks 放在一起，`|` 怎么用只在这里定义。
 _CHUNK_MARKS = re.compile(r'\s*(?:\|\s*)+')
 _ASCII_ALNUM = re.compile(r'[0-9A-Za-z]')
+_LATIN_STOP = re.compile(r'[.,;:!?)\]"\'…]')   # 半角句读、右括号、引号、省略号：英文里后面跟空格再接下一个词
+_LATIN_TAIL = re.compile(r'[0-9A-Za-z.,;:!?)\]"\']')   # 句读前面是英文（词尾、引号、括号），才算英文的句读
 
 
 def strip_chunk_marks(text: str) -> str:
@@ -107,6 +109,10 @@ def strip_chunk_marks(text: str) -> str:
     所以去掉 `|` 不补停顿：
       - 两边是中文、标点，或在段首段尾 → 直接去掉（「判断|这套」照常连读，不再停一下）
       - 两边都是 ASCII 字母或数字 → 换成一个空格（「Intensive|Applications」不连成一个词，「300|400」不连成一个数）
+      - 左边是英文后面的半角句读（. , ; : ! ?、右括号、引号或省略号），右边是字母或数字 → 换成一个空格：英文句读后面接下一个词
+        （「minutes.|Today」「warehouse,|and」），不补空格就念成「minutes.Today」（lessons #145）。
+        别的 ASCII 符号照旧直接连上（「TCP/|IP」「Data-|Intensive」「(|Kafka」「$|100」），全角标点、中文后面的半角标点也是
+        （「：|p」「数据,|Kafka」）
       - `|` 旁边本来就有空白 → 收成一个空格
     没有 `|` 的文本原样返回。服务端的字级时间戳落在去掉 `|` 的文本上；chunk_starts 对的 tts_text
     是各块直接拼起来的，同样没有 `|`，所以每块照旧对到自己首字的时间戳。
@@ -120,7 +126,10 @@ def strip_chunk_marks(text: str) -> str:
         if not a or not b:
             return ''
         spaced = any(ch != '|' for ch in m.group(0))
-        return ' ' if spaced or (_ASCII_ALNUM.match(a) and _ASCII_ALNUM.match(b)) else ''
+        words = _ASCII_ALNUM.match(a) and _ASCII_ALNUM.match(b)
+        before = text[m.start() - 2] if m.start() >= 2 else ''
+        after_stop = _LATIN_STOP.match(a) and _ASCII_ALNUM.match(b) and _LATIN_TAIL.match(before)
+        return ' ' if spaced or words or after_stop else ''
 
     return _CHUNK_MARKS.sub(_join, text)
 
@@ -286,12 +295,24 @@ _TO_SPACE = set('  \u3000\t')
 _DROP_PUNCT = set('，。！？；：,.!?;:、·|｜')
 
 
-def clean_sub_text(s: str, lang: str = 'zh') -> str:
-    """屏幕文本：去句读标点（标点只驱动 TTS 停顿，不上画面）。
+# 英文块尾的句读：块已经是一行字幕，句末的点、逗号、冒号、省略号不上屏；问号、感叹号留着（它们改变语气）。
+_EN_TAIL_PUNCT = re.compile(r'[\s.,;:…、，。；：|｜]+$')
+
+
+def clean_sub_text(s: str, lang: str = 'zh', keep_punct: bool = False) -> str:
+    """屏幕文本：去句读标点（标点只驱动 TTS 停顿，不上画面）；英文片的英文块只去块尾的句读。
 
     唯一例外：词里的点（2.4% / ASN.1 / X.509，左右都是数字或 ASCII 字母）保留 —— 它属于数字或名字本身，
     删掉会让画面显示的数字与念出来的差一个数量级，或者写成另一个名字。逗号照删（lessons #88 用户拍板）。
+    lang 不是 'zh' 时，空白留成一个空格（英文词之间要空格）。
+
+    keep_punct=True（英文片里没有中文的块，subs.py 按 project.json 的 lang 判）：保留句内标点，只去块尾的
+    . , ; : …，? ! 留着（2026-10-22 用户拍板，lessons #145）。原来这些块也照中文全删，「Kafka, a warehouse」
+    上屏成「Kafka a warehouse」，「1,000」成「1000」，读不通。中文片不受影响，哪怕某一块全是英文。
     """
+    if keep_punct:
+        t = ''.join(' ' if ch in _TO_SPACE else ch for ch in s if ch not in '|｜')
+        return _EN_TAIL_PUNCT.sub('', re.sub(r'\s{2,}', ' ', t).strip())
     out = []
     for i, ch in enumerate(s):
         if ch in _KEEP_CHARS:
@@ -407,6 +428,8 @@ def main() -> int:
 
     proj = os.path.abspath(args.project)
     pj = json.load(open(os.path.join(proj, "project.json"), encoding="utf-8"))
+    # 英文片（new_project.py --lang en）：英文块保留句内标点（lessons #145）；中文片照 #88 全删
+    en_film = str(pj.get("lang") or "zh").lower().split("-")[0] == "en"
     fps = args.fps or float(pj.get("fps") or FPS_DEFAULT)
     narration = json.load(open(os.path.join(proj, "narration.json"), encoding="utf-8"))
     if isinstance(narration, dict):
@@ -472,7 +495,7 @@ def main() -> int:
             if b <= a:
                 b = a + 1.0 / fps
             f0, f1 = frame_of(a, fps), max(frame_of(a, fps), frame_of(b, fps) - 1)
-            screen = clean_sub_text(c, 'zh' if has_cjk(c) else 'en') or c
+            screen = clean_sub_text(c, 'zh' if has_cjk(c) else 'en', keep_punct=en_film and not has_cjk(c)) or c
             size = fit_size(screen)
             blocks.append({
                 'text': screen, 'spoken': c, 'from': f0, 'to': f1,

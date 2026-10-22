@@ -183,10 +183,10 @@ node scripts/render_video.mjs . --list-profiles      # 看全部档位
 
 | 阶段 | 命令 | 抓什么 |
 |---|---|---|
-| 配音时 | `tts_build.py` | 字级时间戳是插值的（不在 1/32 秒网格上、每字一样长）：打 ⚠，manifest 每段记 `even_timestamps`（`whole` / `tail` / `null`），这一段的字幕和 `B()` 对不上吐字，改写后重配 |
+| 配音时 | `tts_build.py` | 字级时间戳是插值的（不在真时间戳的网格上 —— 中文 1/32 秒、英文 0.08 秒，或每字一样长）：打 ⚠，manifest 每段记 `even_timestamps`（`whole` / `tail` / `null`），这一段的字幕和 `B()` 对不上吐字，改写后重配 |
 | 渲染前 | `check_beats_refs.py` | `B()` 引用不到字幕块（否则渲到那一帧才报错） |
-| | `lint_frames.py` | 外链字体 / CDN、色值字面量、墙钟逻辑、CSS transition、字幕带压内容、缺中文字体、**搭建期读布局**（连帧引用的本地脚本一起扫） |
-| | `check_layout.mjs` | 元素遮挡、出画、侵入字幕带、该对齐没对齐 |
+| | `lint_frames.py` | 外链字体 / CDN、色值字面量、墙钟逻辑、CSS transition、字幕带压内容、缺中文字体（画面有中文时）、**搭建期读布局**（连帧引用的本地脚本与本地样式表一起扫） |
+| | `check_layout.mjs` | 元素遮挡、出画、侵入字幕带、该对齐没对齐（有出场的场景量 `speech_end` 那一刻） |
 | 渲染后 | `qc_check.py` | 流与时长对齐、音量、抽帧速览图、**单帧跳动**（FAIL）、**场间硬切**（WARN） |
 | 封面 | `check_cover.mjs` | 边距、钩子字号、行宽、孤字、文字重叠 |
 
@@ -233,11 +233,13 @@ python tests/test_subs_text.py             # 字幕文本规则
 python tests/test_subs_pause_letter.py     # 块起点不落在停顿上（真实时间戳，不联网）
 python tests/test_tts_ali.py               # 阿里 TTS（不联网、不需要密钥）
 python tests/test_tts_chunk_marks.py       # 切块符 | 不送 TTS（三个引擎，不联网）
-python tests/test_lint_frames.py           # lint：搭建期读布局
+python tests/test_lint_frames.py           # lint：搭建期读布局、本地样式表、英文帧不要求中文字体
 python tests/test_qc_continuity.py         # 逐帧连续性（缺 numpy / ffmpeg 时跳过端到端段）
+python tests/test_qc_frame_count.py        # 实测帧数：流复制不数帧时解码再数（不跑真的 ffmpeg）
 node   tests/test_beats_norm.mjs           # 节拍匹配
 node   tests/test_page_probe_escapes.mjs   # 交给浏览器执行的源码字符串：转义不被模板字符串吃掉
 node   tests/test_seek_history.mjs         # 渲染与 seek 历史无关：--workers 3 与 1 逐帧一致（缺浏览器时跳过）
+node   tests/test_layout_exit.mjs          # 几何体检量出场之前那一刻（缺浏览器时跳过）
 ```
 
 CI（`.github/workflows/ci.yml`）在 Ubuntu 与 Windows、Python 3.9 与 3.13 上跑以上检查，并设 `HX_NO_SKIP=1`：

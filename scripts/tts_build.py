@@ -44,7 +44,7 @@ html-video-workbuddy-driver 的 tts_edges.py 二次实战），核心五件事�
   container_duration_sec  裁完后 MP3 容器时长 → **帧时长用这个**（音画同步）
   speech_end_sec          词边界末尾（裁后坐标系）→ **末块字幕收尾用这个**
   duration_sec            词边界末尾（原始坐标系）→ 仅排查用
-  even_timestamps         "whole" / "tail" / null：字级时间戳是不是插值的（不在 1/32 秒网格上、每字一样长或
+  even_timestamps         "whole" / "tail" / null：字级时间戳是不是插值的（不在真的时间戳的网格上、每字一样长或
                           段尾步长相同；整段 / 从某个字起，lessons #140）；被标出来的段打 ⚠，建议改写那一段再重配
 
 用法（项目目录内）：
@@ -94,9 +94,10 @@ TRIM_TAIL_KEEP = 0.12
 TRIM_THRESHOLD = 0.004
 
 # 字级时间戳是插值的（lessons #140）：阿里对某些写法不给真的时间戳，把一段（或从某个字起到段尾）的时长按字数分给每个字。
-# 真的时间戳落在 1/32 秒网格上（多数在 1/16 秒上），插值的不在。音频没问题，只是字幕和 B() 节拍对不上吐字，下游不报错。
+# 真的时间戳落在网格上，插值的不在：中文的字级时间戳在 1/32 秒网格上（多数在 1/16 秒上），
+# 英文的词级时间戳在 0.08 秒网格上（lessons #146）。音频没问题，只是字幕和 B() 节拍对不上吐字，下游不报错。
 EVEN_MIN_CHARS = 6        # 不到 6 个字不判：插值和真的分不开
-EVEN_GRID = 1 / 32        # 真的字级时间戳落在 1/32 秒的网格上
+EVEN_GRIDS = (1 / 32, 0.08)   # 真的时间戳落在其中一个网格上：中文字级 1/32 秒，英文词级 0.08 秒；一段只用一个，取落点多的那个
 EVEN_GRID_TOL = 0.001     # offset 取整到毫秒：离格点 ≤ 1 ms 算在网格上（0.438 是 0.4375）
 EVEN_OFF_SHARE = 0.5      # 至少这么多的 offset 不在网格上
 EVEN_OFF_RUN = 8          # 或者有这么多个连续不在网格上
@@ -139,8 +140,15 @@ def _even_tail(chars: list[dict]) -> int:
     return run
 
 
-def _off_grid(offset: float) -> bool:
-    return abs(offset / EVEN_GRID - round(offset / EVEN_GRID)) * EVEN_GRID > EVEN_GRID_TOL
+def _off_grid(offset: float, grid: float) -> bool:
+    return abs(offset / grid - round(offset / grid)) * grid > EVEN_GRID_TOL
+
+
+def _segment_grid(chars: list[dict]) -> float:
+    """这一段的时间戳用哪个网格：落点多的那个（一样多取 1/32 秒）。逐个字「两个网格都不在才算不在」不行：
+    插值的、挪开几毫秒的 offset 会碰巧落在另一个网格上，把连续不在网格上的那一串切断（lessons #146）。"""
+    hits = [sum(not _off_grid(float(b["offset_sec"]), g) for b in chars) for g in EVEN_GRIDS]
+    return EVEN_GRIDS[hits.index(max(hits))]
 
 
 def even_assess(bounds: list[dict]) -> tuple[str, int] | None:
@@ -153,7 +161,8 @@ def even_assess(bounds: list[dict]) -> tuple[str, int] | None:
     durs = [round(float(b["duration_sec"]), 3) for b in chars]
     if max(durs) - min(durs) < EVEN_WHOLE_SPREAD:
         return "whole", 0
-    off = [_off_grid(float(b["offset_sec"])) for b in chars]
+    grid = _segment_grid(chars)
+    off = [_off_grid(float(b["offset_sec"]), grid) for b in chars]
     best = best_start = run = 0
     for i, f in enumerate(off):
         run = run + 1 if f else 0
