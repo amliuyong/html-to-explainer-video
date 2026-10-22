@@ -97,7 +97,7 @@ def split_chunks(text: str):
 # 切块符 `|` 的另一半：送 TTS 之前去掉（lessons #142）。和 split_chunks 放在一起，`|` 怎么用只在这里定义。
 _CHUNK_MARKS = re.compile(r'\s*(?:\|\s*)+')
 _ASCII_ALNUM = re.compile(r'[0-9A-Za-z]')
-_LATIN_STOP = re.compile(r'[.,;:!?)\]]')   # 半角句读与右括号：英文里后面跟空格再接下一个词
+_LATIN_STOP = re.compile(r'[.,;:!?)\]"\'…]')   # 半角句读、右括号、引号、省略号：英文里后面跟空格再接下一个词
 _LATIN_TAIL = re.compile(r'[0-9A-Za-z.,;:!?)\]"\']')   # 句读前面是英文（词尾、引号、括号），才算英文的句读
 
 
@@ -109,7 +109,7 @@ def strip_chunk_marks(text: str) -> str:
     所以去掉 `|` 不补停顿：
       - 两边是中文、标点，或在段首段尾 → 直接去掉（「判断|这套」照常连读，不再停一下）
       - 两边都是 ASCII 字母或数字 → 换成一个空格（「Intensive|Applications」不连成一个词，「300|400」不连成一个数）
-      - 左边是英文后面的半角句读（. , ; : ! ? 或右括号），右边是字母或数字 → 换成一个空格：英文句读后面接下一个词
+      - 左边是英文后面的半角句读（. , ; : ! ?、右括号、引号或省略号），右边是字母或数字 → 换成一个空格：英文句读后面接下一个词
         （「minutes.|Today」「warehouse,|and」），不补空格就念成「minutes.Today」（lessons #145）。
         别的 ASCII 符号照旧直接连上（「TCP/|IP」「Data-|Intensive」「(|Kafka」「$|100」），全角标点、中文后面的半角标点也是
         （「：|p」「数据,|Kafka」）

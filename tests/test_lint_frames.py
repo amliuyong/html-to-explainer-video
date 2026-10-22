@@ -20,9 +20,11 @@ beats.js，也不误伤与字体无关的 SVG 几何（getTotalLength / getPoint
 from __future__ import annotations
 
 import importlib.util
+import io
 import os
 import sys
 import tempfile
+from contextlib import redirect_stdout
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -165,10 +167,14 @@ got = issues_for({**VENDOR, "theme.css": THEME,
                   "frames/a.html": EN_FRAME}, "a.html", "en")
 check("common.css 里 @import 远程字体被报", any("@import" in x and "common.css" in x for x in got), f"得到 {got}")
 
-got = issues_for({**VENDOR, "theme.css": THEME, "frames/common.css": COMMON + ".band { bottom: 100px; }",
+got = issues_for({**VENDOR, "theme.css": THEME, "frames/common.css": COMMON + ".row::before { top: 6px; bottom: 6px; }",
                   "frames/a.html": EN_FRAME}, "a.html", "en")
-check("common.css 里压进字幕带的 bottom 被报，并注明出处", any("bottom:100px" in x and "common.css" in x for x in got),
-      f"得到 {got}")
+check("共享样式表里的 bottom 不按字幕带启发式报（卡片内边距一类；几何以 check_layout 为准）",
+      not any("bottom" in x for x in got), f"得到 {got}")
+got = issues_for({**VENDOR, "theme.css": THEME, "frames/common.css": COMMON,
+                  "frames/a.html": EN_FRAME.replace("</head>", "<style>.band { bottom: 100px; }</style></head>")},
+                 "a.html", "en")
+check("帧自己的 CSS 里压进字幕带的 bottom 照旧报", any("bottom:100px" in x for x in got), f"得到 {got}")
 
 got = issues_for({**VENDOR, "theme.css": THEME, "frames/common.css": COMMON + ".x { color: #ff0000; }",
                   "frames/a.html": EN_FRAME.replace('rel="stylesheet" href="common.css"', 'rel=stylesheet href=common.css')},
@@ -184,6 +190,42 @@ got = issues_for({**VENDOR, "theme.css": THEME, "frames/common.css": COMMON,
                                                     "document.querySelector('.box').textContent = '分钟级';")},
                  "a.html", "en")
 check("脚本字符串里的中文要上画面，要求中文字体族", any("中文字体族" in x for x in got), f"得到 {got}")
+
+got = issues_for({**VENDOR, "theme.css": THEME, "frames/common.css": COMMON,
+                  "frames/a.html": EN_FRAME.replace("tl.to('.box', { x: 10 }, 0);",
+                                                    "document.querySelector('.box').textContent = \"注意 // 中文\";")},
+                 "a.html", "en")
+check("字符串里的「//」不是注释：字符串里的中文照样要求中文字体族", any("中文字体族" in x for x in got), f"得到 {got}")
+
+got = issues_for({**VENDOR, "theme.css": THEME, "frames/common.css": COMMON + '.tag::after { content: "A // 中文"; }',
+                  "frames/a.html": EN_FRAME}, "a.html", "en")
+check("CSS content 里的中文要求中文字体族", any("中文字体族" in x for x in got), f"得到 {got}")
+
+got = issues_for({**VENDOR, "theme.css": THEME, "frames/common.css": COMMON,
+                  "frames/a.html": EN_FRAME.replace("<head>", "<head><title>场景 · 开场</title>")
+                                           .replace('<div class="box">', '<div class="box" data-note="中文备注">')},
+                 "a.html", "en")
+check("<title> 与标签属性里的中文不上画面，英文帧不要求中文字体族", got == [], f"得到 {got}")
+
+print("共享样式表的问题只报一次")
+with tempfile.TemporaryDirectory() as d:
+    files = {**VENDOR, "theme.css": THEME, "frames/common.css": COMMON + ".x { color: #ff0000; }",
+             "frames/a.html": EN_FRAME, "frames/b.html": EN_FRAME,
+             "project.json": '{"width": 1920, "height": 1080, "lang": "en"}'}
+    for rel, text in files.items():
+        p = os.path.join(d, rel)
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        open(p, "w", encoding="utf-8").write(text)
+    argv, buf = sys.argv, io.StringIO()
+    sys.argv = ["lint_frames.py", "--project", d]
+    try:
+        with redirect_stdout(buf):
+            lint.main()
+    finally:
+        sys.argv = argv
+    lines = [x for x in buf.getvalue().splitlines() if "#ff0000" in x]
+check("两个帧共用 common.css：#ff0000 只报一行，记在 common.css 名下",
+      len(lines) == 1 and "common.css:" in lines[0], f"得到 {lines}")
 
 if fails:
     print("\n✗ 失败：")
