@@ -160,6 +160,31 @@ check("画面里有中文时，lang 是 en 也要求中文字体族", any("中�
 got = issues_for({**VENDOR, "theme.css": THEME, "frames/a.html": EN_FRAME}, "a.html", "en")
 check("引用的本地样式表不存在时报出来", any("common.css" in x and "不存在" in x for x in got), f"得到 {got}")
 
+got = issues_for({**VENDOR, "theme.css": THEME,
+                  "frames/common.css": "@import url(https://fonts.googleapis.com/css2?family=Inter);\n" + COMMON,
+                  "frames/a.html": EN_FRAME}, "a.html", "en")
+check("common.css 里 @import 远程字体被报", any("@import" in x and "common.css" in x for x in got), f"得到 {got}")
+
+got = issues_for({**VENDOR, "theme.css": THEME, "frames/common.css": COMMON + ".band { bottom: 100px; }",
+                  "frames/a.html": EN_FRAME}, "a.html", "en")
+check("common.css 里压进字幕带的 bottom 被报，并注明出处", any("bottom:100px" in x and "common.css" in x for x in got),
+      f"得到 {got}")
+
+got = issues_for({**VENDOR, "theme.css": THEME, "frames/common.css": COMMON + ".x { color: #ff0000; }",
+                  "frames/a.html": EN_FRAME.replace('rel="stylesheet" href="common.css"', 'rel=stylesheet href=common.css')},
+                 "a.html", "en")
+check("不带引号的 rel=stylesheet href=common.css 也扫", any("#ff0000" in x for x in got), f"得到 {got}")
+
+got = issues_for({**VENDOR, "theme.css": THEME, "frames/common.css": COMMON,
+                  "frames/a.html": EN_FRAME.replace("Queryable in minutes", "MySQL // 分钟级")}, "a.html", "en")
+check("正文里的「// 中文」是画面文字，要求中文字体族", any("中文字体族" in x for x in got), f"得到 {got}")
+
+got = issues_for({**VENDOR, "theme.css": THEME, "frames/common.css": COMMON,
+                  "frames/a.html": EN_FRAME.replace("tl.to('.box', { x: 10 }, 0);",
+                                                    "document.querySelector('.box').textContent = '分钟级';")},
+                 "a.html", "en")
+check("脚本字符串里的中文要上画面，要求中文字体族", any("中文字体族" in x for x in got), f"得到 {got}")
+
 if fails:
     print("\n✗ 失败：")
     for f in fails:

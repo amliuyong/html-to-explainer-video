@@ -119,8 +119,8 @@ def count_video_frames(ff, path):
                         n = int(line.split("=", 1)[1].strip().split()[0])
                     except (IndexError, ValueError):
                         pass
-        if n:
-            return n
+        if n or (n == 0 and not codec):
+            return n          # 解码那一遍数出 0 帧就是 0 帧：交给帧数校验 FAIL，不当作「数不出来」
     return None
 
 

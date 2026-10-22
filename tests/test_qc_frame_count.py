@@ -70,6 +70,10 @@ try:
     qc.subprocess.run = run
     check("stats 行里的 frame= 也认", qc.count_video_frames("ffmpeg", "x.mp4"), 450)
 
+    run, calls = fake_ffmpeg((PROGRESS_END, STATS_NO_FRAME), ("frame=0\nprogress=end\n", ""))
+    qc.subprocess.run = run
+    check("解码数出 0 帧 → 0（帧数校验 FAIL，不当作数不出来）", qc.count_video_frames("ffmpeg", "x.mp4"), 0)
+
     run, calls = fake_ffmpeg((PROGRESS_END, STATS_NO_FRAME), (PROGRESS_END, STATS_NO_FRAME))
     qc.subprocess.run = run
     check("两遍都没给帧数 → None（QC 打 WARN，不当作 0 帧）", qc.count_video_frames("ffmpeg", "x.mp4"), None)

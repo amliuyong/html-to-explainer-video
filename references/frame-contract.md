@@ -125,8 +125,9 @@ if (SEG.gap > 0) {
 | 换章但没有章节卡 | 更重的动作：扫描线擦除（一份幕底副本从左往右露出来、亮线贴着它的边走）连页眉一起抹掉 |
 
 注意两点：① 对**已有入场补间的元素**写出场时，用 `tl.to(...)`，或 `fromTo` 加 `immediateRender: false` ——
-`fromTo` 默认在搭建时就把元素设成 from 值，会覆盖入场的初始态，第 0 帧就露馅；② `check_layout.mjs` 量的是**轴末状态**，
-出场后内容都淡没了 —— 几何体检要对**不带出场**的版本跑（生成器留一个开关，例如 `--no-trans`），渲染再用带出场的版本。
+`fromTo` 默认在搭建时就把元素设成 from 值，会覆盖入场的初始态，第 0 帧就露馅；② `check_layout.mjs` 对有出场的场景
+（`__SEG__.gap > 0`）量 **`speech_end` 那一刻**，不量轴末（轴末已经出场、全淡没了，lessons #147），所以出场照常写、不用另备不带出场的版本；
+它量到 0 个元素时报 WARN「没量到元素」。连线、箭头别画在满屏的 SVG 上：给每组一张刚好包住它的 SVG，`viewBox` 写成页面坐标。
 `qc_check.py` ⑥ 会在每个场景边界比较前后两帧，整体突变的报「场间硬切」（WARN）。
 
 ## 第 5 条：B() 节拍器
@@ -166,7 +167,7 @@ var tEnd = Be('证据');                                              // 该块�
   "$PY" <skill>/scripts/check_beats_refs.py --project . --only hook_q,r1_data
   ```
 - 兜底写法 `B('X') || 3.2` **禁止**：beats 缺失时要在构建期暴露，不是悄悄用旧数字。
-- `window.__SEG__`：`{id, duration, speech_end, tail}` —— 帧尾呼吸：主体动画压在 `speech_end` 前，`duration - speech_end`（约 0.1–0.3s）留给静止收尾。
+- `window.__SEG__`：`{id, duration, speech_end, tail, gap, chapter_start, chapter_end}` —— 帧尾呼吸：主体动画压在 `speech_end` 前，`duration - speech_end`（约 0.1–0.3s）留给静止收尾；`gap` 是本场之后的段间静默（出场写在 `[speech_end, duration + gap]` 里，末场为 0），`check_layout` 也靠它判断本场有没有出场。
 
 ## 渲染器注入的东西（帧作者零负担）
 

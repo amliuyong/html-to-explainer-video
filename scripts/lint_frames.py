@@ -51,11 +51,15 @@ LAYOUT_READ = re.compile(r"\.(getBoundingClientRect|getClientRects|getBBox|getCo
                          r"|\.(offset|client|scroll)(Width|Height|Top|Left)\b")
 LOCAL_SCRIPT = re.compile(r"<script[^>]+src\s*=\s*[\"']([^\"']+)[\"']", re.I)
 VENDOR_SCRIPT = re.compile(r"(^|/)(gsap(\.min)?\.js|motion\.js|[^/]+\.beats\.js)$")
-LOCAL_STYLE = re.compile(r"<link\b[^>]*\brel\s*=\s*[\"']stylesheet[\"'][^>]*>", re.I)
-HREF = re.compile(r"\bhref\s*=\s*[\"']([^\"']+)[\"']", re.I)
+LOCAL_STYLE = re.compile(r"<link\b[^>]*\brel\s*=\s*[\"']?stylesheet\b[^>]*>", re.I)
+HREF = re.compile(r"\bhref\s*=\s*(?:\"([^\"]+)\"|'([^']+)'|([^\s>]+))", re.I)
 CJK_CHAR = re.compile(r"[\u3400-\u9fff\uf900-\ufaff\u3000-\u303f\uff00-\uffef]")
-# 去掉注释后再找中文：注释里的中文不上画面（URL 里的 // 不算注释）
-COMMENTS = re.compile(r"<!--.*?-->|/\*.*?\*/|(?<![:\"'\w])//[^\n]*", re.S)
+# 画面上的文字：标签之间的文字，加上脚本与样式表里的字符串（JS 设的 textContent、CSS 的 content）。注释不算。
+HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
+BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
+LINE_COMMENT = re.compile(r"(?m)(?:^|(?<=[\s;{}()]))//[^\n]*")
+SCRIPT_OR_STYLE = re.compile(r"<(script|style)\b[^>]*>(.*?)</\1\s*>", re.S | re.I)
+STRING_LIT = re.compile(r"\"(?:[^\"\\\n]|\\.)*\"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`")
 
 # 允许出现的颜色字面量（阴影/透视遮罩，不参与配色语义）
 ALLOWED_RGBA_PREFIX = ("rgba(0,0,0", "rgba(0, 0, 0", "rgba(255,255,255", "rgba(255, 255, 255")
@@ -65,21 +69,22 @@ def check_file(path: str, want_w: int, want_h: int, is_cover: bool = False, lang
     src = open(path, encoding="utf-8").read()
     name = os.path.basename(path)
     out: list[str] = []
-    sheets = local_styles(path, src, out)
-    css_all = "\n".join([src] + [text for _, text in sheets])
+    sheets = local_refs(path, src, out, "样式表")
+    frame_and_css = "\n".join([src] + [text for _, text in sheets])
 
     # 1. 画布（封面有自己的规格：16:9 版 1920×1080 / 3:4 版 1440×1080）
     if is_cover:
-        if not re.search(r"width\s*:\s*\d+px", css_all) or not re.search(r"height\s*:\s*\d+px", css_all):
+        if not re.search(r"width\s*:\s*\d+px", frame_and_css) or not re.search(r"height\s*:\s*\d+px", frame_and_css):
             out.append("封面：未见 width/height 像素声明")
-    elif not re.search(rf"width\s*:\s*{want_w}px", css_all) or not re.search(rf"height\s*:\s*{want_h}px", css_all):
+    elif not re.search(rf"width\s*:\s*{want_w}px", frame_and_css) or not re.search(rf"height\s*:\s*{want_h}px", frame_and_css):
         out.append(f"画布：未见 width:{want_w}px / height:{want_h}px 声明")
 
     # 2. 外部字体 / 远程资源
     if FONT_LINK.search(src):
         out.append("外部 <link href=http…>（字体/样式）→ 违反契约 2（渲染器 5s 字体硬顶）")
-    if IMPORT_HTTP.search(src):
-        out.append("@import url(http…) → 违反契约 2")
+    for label, text in [(None, src)] + sheets:
+        if IMPORT_HTTP.search(text):
+            out.append(f"@import url(http…){f'（{label}）' if label else ''} → 违反契约 2")
     if GSAP_CDN.search(src):
         out.append("<script src=http…> → 违反契约 8（必须用 ../assets/gsap.min.js）")
 
@@ -107,33 +112,36 @@ def check_file(path: str, want_w: int, want_h: int, is_cover: bool = False, lang
     # 6/7. 墙钟 / transition
     if WALLCLOCK.search(src):
         out.append("疑似墙钟逻辑（setInterval / setTimeout / rAF）→ seek 渲染下必然失控")
-    if CSS_TRANSITION.search(css_all):
-        out.append("CSS transition: → 逐帧 seek 不生效，入场必须用 GSAP")
+    for label, text in [(None, src)] + sheets:
+        if CSS_TRANSITION.search(text):
+            out.append(f"CSS transition:{f'（{label}）' if label else ''} → 逐帧 seek 不生效，入场必须用 GSAP")
 
     # 8. B() 兜底
     if B_FALLBACK.search(src):
         out.append("B('…') || 数字 兜底写法 → 禁止（beats 缺失要在构建期暴露）")
 
-    # 9. 字幕带禁区（启发式）
-    for m in BOTTOM_RULE.finditer(css_all):
-        v = int(m.group(1))
-        unit = m.group(2)
-        if unit == "px" and 0 <= v < 176:
-            # 取该行上下文，判断是不是有内容的容器
-            line_start = css_all.rfind("\n", 0, m.start()) + 1
-            line_end = css_all.find("\n", m.end())
-            line = css_all[line_start:line_end].strip()
-            out.append(f"bottom:{v}px 落在字幕带/进度条禁区 → {line[:70]}")
-    for m in re.finditer(r"bottom\s*:\s*calc\([^)]*\)", css_all):
-        out.append(f"bottom:calc(…) 请人工核对是否 ≥176px → {m.group(0)[:70]}")
+    # 9. 字幕带禁区（启发式；帧本身 + 引用的本地样式表）
+    for label, text in [(None, src)] + sheets:
+        where = f"（{label}）" if label else ""
+        for m in BOTTOM_RULE.finditer(text):
+            v = int(m.group(1))
+            unit = m.group(2)
+            if unit == "px" and 0 <= v < 176:
+                # 取该行上下文，判断是不是有内容的容器
+                line_start = text.rfind("\n", 0, m.start()) + 1
+                line_end = text.find("\n", m.end())
+                line = text[line_start:line_end].strip()
+                out.append(f"bottom:{v}px{where} 落在字幕带/进度条禁区 → {line[:70]}")
+        for m in re.finditer(r"bottom\s*:\s*calc\([^)]*\)", text):
+            out.append(f"bottom:calc(…){where} 请人工核对是否 ≥176px → {m.group(0)[:70]}")
 
     # 10. 中文字体栈：画面里有中文才需要（英文片不必为它挂中文字体，lessons #148）
-    needs_cjk = lang.lower().startswith("zh") or CJK_CHAR.search(COMMENTS.sub("", css_all)) is not None
-    if needs_cjk and CJK_FONT.search(css_all) is None:
+    needs_cjk = lang.lower().startswith("zh") or CJK_CHAR.search(shown_text(src, sheets)) is not None
+    if needs_cjk and CJK_FONT.search(frame_and_css) is None:
         out.append("字体栈里没看到中文字体族 → 可能落到默认字体")
 
     # 11. 搭建期读布局（帧内联脚本 + 引用的本地脚本）
-    for label, text in [(None, src)] + local_scripts(path, src, out):
+    for label, text in [(None, src)] + local_refs(path, src, out, "脚本"):
         where = f"（{label}）" if label else ""
         m = LAYOUT_READ.search(text)
         if m:
@@ -146,34 +154,33 @@ def check_file(path: str, want_w: int, want_h: int, is_cover: bool = False, lang
     return [f"{name}: {x}" for x in sorted(set(out))]
 
 
-def local_styles(path: str, src: str, out: list[str]) -> list[tuple[str, str]]:
-    """帧引用的本地样式表 [(相对路径, 内容)]，theme.css 除外；不存在的记进 out。远程样式表由第 2 条管。"""
+def shown_text(src: str, sheets: list[tuple[str, str]]) -> str:
+    """画面上可能出现的文字：标签之间的文字 + 脚本与样式里的字符串字面量（textContent、CSS 的 content）。
+    注释（<!-- -->、/* */、//）不算 —— 中文注释不上画面。用来判断要不要中文字体族（lessons #148）。"""
+    html = HTML_COMMENT.sub("", src)
+    code = [m.group(2) for m in SCRIPT_OR_STYLE.finditer(html)] + [text for _, text in sheets]
+    markup = SCRIPT_OR_STYLE.sub("", html)
+    literals = [lit for c in code for lit in STRING_LIT.findall(LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", c)))]
+    return "\n".join([markup] + literals)
+
+
+def local_refs(path: str, src: str, out: list[str], kind: str) -> list[tuple[str, str]]:
+    """帧引用的本地脚本或样式表 [(相对路径, 内容)]；不存在的记进 out。远程的由第 2、5 条管。
+    脚本跳过技能自带的 gsap.min.js / motion.js 与 *.beats.js；样式表跳过 theme.css（色值的唯一来源）。"""
+    if kind == "脚本":
+        refs = [m.group(1) for m in LOCAL_SCRIPT.finditer(src)]
+        skip = lambda ref: VENDOR_SCRIPT.search(ref)
+    else:
+        refs = [next(g for g in m.groups() if g) for m in map(HREF.search, LOCAL_STYLE.findall(src)) if m]
+        skip = lambda ref: os.path.basename(ref) == "theme.css"
     found = []
-    for tag in LOCAL_STYLE.findall(src):
-        m = HREF.search(tag)
-        if not m:
-            continue
-        ref = m.group(1).split("?")[0]
-        if re.match(r"^[a-z]+:", ref, re.I) or os.path.basename(ref) == "theme.css":
+    for raw in refs:
+        ref = raw.split("?")[0]
+        if re.match(r"^[a-z]+:", ref, re.I) or skip(ref):
             continue
         p = os.path.normpath(os.path.join(os.path.dirname(path), ref))
         if not os.path.isfile(p):
-            out.append(f"引用的本地样式表不存在：{ref}")
-            continue
-        found.append((ref, open(p, encoding="utf-8", errors="replace").read()))
-    return found
-
-
-def local_scripts(path: str, src: str, out: list[str]) -> list[tuple[str, str]]:
-    """帧引用的本地脚本 [(相对路径, 内容)]；不存在的记进 out。远程脚本由第 5 条管。"""
-    found = []
-    for m in LOCAL_SCRIPT.finditer(src):
-        ref = m.group(1).split("?")[0]
-        if re.match(r"^[a-z]+:", ref, re.I) or VENDOR_SCRIPT.search(ref):
-            continue
-        p = os.path.normpath(os.path.join(os.path.dirname(path), ref))
-        if not os.path.isfile(p):
-            out.append(f"引用的本地脚本不存在：{ref}")
+            out.append(f"引用的本地{kind}不存在：{ref}")
             continue
         found.append((ref, open(p, encoding="utf-8", errors="replace").read()))
     return found
