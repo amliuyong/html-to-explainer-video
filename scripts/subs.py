@@ -16,7 +16,8 @@ subs.py —— 字幕三出口 + 节拍器 beats.js。
      **唯独词里的点要留**（左右都是数字或 ASCII 字母）—— 2.4% 削成 24% 是差一个数量级的假数字，
      ASN.1 / X.509 削成 ASN1 / X509 是另一个名字
   ⑥ 块首那一项要是「停顿 + 下一个英文词的首字母」（阿里：「：|p」+「andas」），块从这一项的结尾起，
-     不从停顿开头起（lessons #144）
+     不从停顿开头起（lessons #144）；停顿并进的是 2–3 个字母（「；|Not」+「ion」）时，从这一项的结尾
+     往前退 0.125 s（lessons #152）
 
 【本技能新增】beats.js 节拍器 —— 把每块的本地秒写进 frames/<id>.beats.js，
 场景 HTML 里用 B('文本') 拿到该词的起播秒，画面节拍直接对齐吐字节拍。
@@ -203,6 +204,14 @@ _PUNCT_RE = re.compile(r'[\s，。、！？：；“”（）,!?;:()\-—…·|]
 PAUSE_LETTER_MIN_SEC = 0.3
 _ONE_LETTER = re.compile(r'[A-Za-z]')
 _LOWER = re.compile(r'[a-z]')
+# 前缀是 2–3 个字母时（「；|Not」+「ion」「bl」+「ameless」，lessons #152）字母本身已经在这一项里开口了：
+# 一个系列 25 集里 5 个这样的块首，开口比后半截的开头早 0.15 s 到晚 0.12 s。块起点取这一项的结尾再往前退
+# 一个普通块的提前量（0.125 s，5213 块的中位数 0.126），5 块里最晚的比开口晚 0.03 s（不到 30 fps 的一帧），
+# 最早的提前 0.24 s（原来 0.28–0.68 s）。0.3 s 的门槛照用：25 集里紧接着小写后半截的 2–3 字母项 48 个，
+# ≥ 0.3 s 的 11 个里都有 ≥ 0.2 s 的静音，不盖停顿的最长 0.27 s（「omb」+「stone」）。
+# 后两个字母是大写的（「API」+「s」）是拼读，一个字母一个音节，不动。
+_SHORT_PREFIX = re.compile(r'[A-Za-z][a-z]{1,2}')
+PAUSE_PREFIX_BACKOFF_SEC = 0.125
 
 
 def _t_of(w):
@@ -212,22 +221,24 @@ def _t_of(w):
 
 
 def _word_onset_after_pause(words, k, wts, at, i):
-    """块首字 tts_text[i] 由第 k 项给出。这一项要是「停顿 + 英文词的首字母」，返回词真正开口的秒
-    （原始坐标系：这一项的结尾，不晚于下一项的开头）；不是就返回 None（lessons #144）。
+    """块首字 tts_text[i] 由第 k 项给出。这一项要是「停顿 + 英文词的首字母」，返回块该从哪一秒起
+    （原始坐标系）；不是就返回 None（lessons #144、#152）。
 
     五个条件都要满足，缺一个就照旧用这一项的开头：
-      - 这一项去掉标点后只剩一个 ASCII 字母，就是块首字；
-      - 下一项紧接在它后面（tts_text 里从 i+1 起），以小写字母开头 —— 同一个词的后半截。
+      - 这一项去掉标点后是一个 ASCII 字母，或 2–3 个字母且后面的是小写（「Not」「Ro」「bl」），就是块首字；
+      - 下一项紧接在它后面（tts_text 里紧跟这几个字母），以小写字母开头 —— 同一个词的后半截。
         大写开头的是拼读的字母（「；|B」+「SO」、「O」+「L」），一个字母一个音节，本来就长；
       - 这一项 ≥ PAUSE_LETTER_MIN_SEC；
       - 它从前一项的结尾开始（空档 < 0.03 s）。停顿在前一项后面的空档里时，这一项从吐字开始；
       - 它和前一项不一样长。插值的段每字一样长（lessons #140），长不说明有停顿。
+    一个字母：这一项的结尾（不晚于下一项的开头）。2–3 个字母：再往前退 PAUSE_PREFIX_BACKOFF_SEC。
     """
     if k is None or k == 0 or k + 1 >= len(words):
         return None
-    if not _ONE_LETTER.fullmatch(wts[k]) or at.get(k) != i:
+    one = _ONE_LETTER.fullmatch(wts[k]) is not None
+    if not (one or _SHORT_PREFIX.fullmatch(wts[k])) or at.get(k) != i:
         return None
-    if at.get(k + 1) != i + 1 or not _LOWER.match(wts[k + 1]):
+    if at.get(k + 1) != i + len(wts[k]) or not _LOWER.match(wts[k + 1]):
         return None
     w, prev = words[k], words[k - 1]
     dur, prev_dur = w.get('duration_sec'), prev.get('duration_sec')
@@ -236,13 +247,15 @@ def _word_onset_after_pause(words, k, wts, at, i):
     off = _t_of(w)
     if off - (_t_of(prev) + float(prev_dur)) >= 0.03 or abs(float(dur) - float(prev_dur)) < 0.005:
         return None
-    return min(off + float(dur), _t_of(words[k + 1]))
+    end = min(off + float(dur), _t_of(words[k + 1]))
+    return end if one else end - PAUSE_PREFIX_BACKOFF_SEC
 
 
 def chunk_starts(tts_text, chunks, words, lead_cut):
     """每块首字对齐到词边界秒（词边界为原始坐标系 → 减 lead_cut 平移）。
 
-    块首那一项要是盖住了停顿的英文首字母（「：|p」+「andas」），块从这一项的结尾起（lessons #144）。
+    块首那一项要是盖住了停顿的英文首字母（「：|p」+「andas」），块从这一项的结尾起（lessons #144）；
+    盖住停顿的是 2–3 个字母（「；|Not」+「ion」）时，从这一项的结尾往前退 0.125 s（lessons #152）。
     """
     char_t = [None] * len(tts_text)
     char_k = [None] * len(tts_text)      # 每个字的时间戳来自第几项

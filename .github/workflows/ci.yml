@@ -85,6 +85,7 @@ jobs:
         run: python tests/test_subs_text.py
 
       # --- 块起点不落在停顿上：阿里把停顿并进下一个英文词的首字母（「：|p」+「andas」），块从这一项的结尾起；
+      #     并进 2–3 个字母的（「；|Not」+「ion」）从结尾再往前退 0.125 s（lessons #152）；
       #     拼读的字母、停顿在空档里、插值的等长项不动，同一段别的块一个不变（lessons #144；真实时间戳，不联网）---
       - name: Pause-letter block start regression test
         run: python tests/test_subs_pause_letter.py
@@ -122,7 +123,8 @@ jobs:
         run: node tests/test_seek_history.mjs
 
       # --- 搭建期读布局：--workers 并行渲染下每 N 帧跳一下，单页检查全绿（lessons #134）；
-      #     顺着 <link rel=stylesheet> 扫本地样式表，英文帧不要求中文字体族（lessons #148）---
+      #     顺着 <link rel=stylesheet> 扫本地样式表，英文帧不要求中文字体族（lessons #148）；
+      #     色值只在颜色上下文里找：脚本字符串「#301–」、id 选择器「#c13」、注释、画面文字不算，真的颜色照报（lessons #151）---
       - name: Frame lint regression test
         run: python tests/test_lint_frames.py
 
