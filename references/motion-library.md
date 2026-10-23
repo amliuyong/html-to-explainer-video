@@ -140,7 +140,7 @@ const HXM = require('./assets/motion.js');
 | `depthBlur(depth, focus?, opts)` | 按深度算虚化量（合焦处为 0） |
 | `whipPan(t, t0, dur, dist, opts)` | 甩镜：快速横向撕裂，**必须开快门**才不跳 |
 | `camShake(t, tHit, opts)` | 撞击相机抖动（确定性 seed） |
-| `slowPush(t, t0, t1, amount?)` | 极缓推镜（默认 +7%），长镜头不静止 |
+| `slowPush(t, t0, t1, amount?)` | 极缓推镜（默认 +7%）；用于有目的的靠近主体或细节，不按镜头时长自动添加 |
 | `gridDots(cam, opts)` | 背景网格点随相机视差移动，给运镜"刻度感" |
 | `toScreen/toWorld/boxOnScreen/screenTravel` | 世界↔屏幕坐标互转、把一个盒子的屏幕位置/移动量算出来 |
 
@@ -198,9 +198,7 @@ function __seek(t) {
   disc.style.transform =
     `translateY(${(1 - drop) * -260}px) scale(${hit.sx}, ${hit.sy})`;
 
-  // 3) 缓推镜，让整场不静止
-  const push = HXM.slowPush(t, 0, DUR, 0.06);
-  document.getElementById('stage').style.transform = `scale(${push})`;
+  // 入场完成后保持位置，给观众阅读时间；需要转向细节时再单独安排运镜。
 }
 
 // 告诉渲染器：这段哪些区间有大位移（决定快门样本数）
@@ -218,12 +216,13 @@ document.fonts.ready.then(() => { __seek(0); window.__ready = true; });
 
 ## 7. 纪律清单（每条都是踩坑换来的）
 
-1. **慢动作别用纯 opacity 淡入** —— 用带位移的弹簧"落下"（`riseWord`），否则读起来像 PPT。
-2. **一个 beat 不许替换上一个** —— 必须让某个元素跨过边界继续动（`morphBox` / `irisOpen` / `camTrack`）。
+1. **入场方式服务于内容** —— 动作主导的画面可用弹簧落下（`riseWord`）；客户演示与阅读密集画面可用简洁淡入后停稳。
+2. **信息推进要有承接** —— 动作链可让元素跨 beat 继续动（`morphBox` / `irisOpen` / `camTrack`）；阅读停留不必为每句配音增加运动。
 3. **快动作必须开快门** —— 超过 80 px/帧 不开运动模糊就会重影（`render_video.mjs --shutter`）。
 4. **所有随机数从固定种子出**（`seededRng`），渲染路径上不许出现 `Math.random()`。
 5. **`__seek(t)` 必须覆盖全部元素** —— 漏掉的元素会保留上一帧的状态，逐帧渲染下表现为"拖影"。
-6. **长镜头用 `slowPush`** —— 超过 3 秒画面完全静止，观众会以为卡了。
+6. **运镜要有目的** —— 用 `slowPush` 靠近主体、揭示细节；不要仅因超过 3 秒就添加推镜或来回微移。
+   文字和图表的阅读停留保持位置与尺度稳定，详见 `frame-contract.md`「阅读停留与运动目的」。
 
 ---
 
