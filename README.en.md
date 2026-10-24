@@ -190,7 +190,7 @@ Useful flags: `--preview 30`, `--only <scene>`, `--workers N`, `--resume`, `--sh
 | Stage | Command | Catches |
 |---|---|---|
 | Voice-over | `tts_build.py` | Interpolated timestamps (off the grid real ones sit on — 1/32 s for Chinese characters, 0.08 s for English words — or every unit the same length): prints a ⚠ and records `even_timestamps` (`whole` / `tail` / `null`) per manifest item. That segment's subtitles and `B()` beats won't follow the speech; reword it and re-voice. Truncated results (stream ended before the final frame, zero word timestamps, audio far too short for the text) are retried, then exit non-zero and never reach the cache |
-| Before render | `check_beats_refs.py` | `B()` calls that match no subtitle chunk |
+| Before render | `check_beats_refs.py` | `B()` calls that match no subtitle chunk, or match several chunks with none matching exactly (ambiguous: an exact match wins, otherwise the first match) |
 | | `lint_frames.py` | Remote fonts / CDNs, colour literals (in colour contexts only; id selectors and comments are not colours), wall-clock logic, CSS transitions, content in the subtitle band, missing CJK fonts (when the frame shows Chinese), **layout reads while building** (also scans the local scripts and stylesheets the frame loads) |
 | | `check_layout.mjs` | Overlap, out of frame, subtitle-band intrusion, near-miss alignment (scenes with an exit are measured at `speech_end`) |
 | After render | `qc_check.py` | Streams and duration, loudness, contact sheet, **single-frame jumps** (FAIL), **hard cuts between scenes** (WARN) |

@@ -387,6 +387,7 @@ BEATS_TMPL = """/* 自动生成（subs.py）——解说词/配音改动后重�
  * Be(text) → 该块收尾秒
  * ★ 匹配规则是「从头开始的前缀匹配」：bt === t || bt.startsWith(t) || t.startsWith(bt)
  *   也就是 text 必须是**块文本的开头**（唯一推荐用法），或与它整体一致。
+ *   **一模一样的块优先**；没有一模一样的，取第一个匹配的块（匹配到不止一块时 check_beats_refs 报歧义）。
  *   **取中间一段会抛错**：
  *   块文本「一位父亲写下《被网游毁掉的孩子》」→ B('一位父亲写下') ✓ / B('被网游毁掉的孩子') ✗
  *   归一化会去 ，。、！？；：,.!?;:| 与空白（保留词里的点：2.4% / X.509），但**不去《》「」**。
@@ -409,11 +410,14 @@ window.__SEG__ = __SEG_DATA__;
       .replace(/\\u0000/g, '.');
   }
   function find(text) {
-    var t = norm(text);
+    // 一模一样的块优先：前面的「提交；」是「提交之后」的前缀，B('提交之后') 也要落在「提交之后，」那块
+    var t = norm(text), hit = null;
     for (var i = 0; i < B.length; i++) {
       var bt = norm(B[i].text);
-      if (bt === t || bt.indexOf(t) === 0 || t.indexOf(bt) === 0) return B[i];
+      if (bt === t) return B[i];
+      if (!hit && (bt.indexOf(t) === 0 || t.indexOf(bt) === 0)) hit = B[i];
     }
+    if (hit) return hit;
     throw new Error('B() 找不到节拍: ' + text);
   }
   window.B = function (text) { return find(text).start; };

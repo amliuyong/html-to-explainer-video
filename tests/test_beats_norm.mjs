@@ -27,6 +27,11 @@ if (!m) {
 // 还原一层 Python 字符串转义（\\s → \s，\\u0000 → \u0000）
 const tmpl = m[1].replace(/\\\\/g, '\\');
 
+// 匹配器有两份模板（lessons #88：subs.py 生成正式的，new_project.py 生成 _template 的占位），改一份漏一份。
+// 两份的 norm() / find() / B / Be 那段（IIFE）必须逐字相同，下面的行为测试才同时守住两份。
+const iife = (src) => (src.match(/\(function \(\) \{[\s\S]*?\n\}\)\(\);/) || [])[0];
+const stub = fs.readFileSync(path.join(ROOT, 'scripts', 'new_project.py'), 'utf8').match(/stub = """([\s\S]*?)"""/);
+
 const beats = [
   // 关键样本：这一条归一化后是 '24%左右'，且**排在 2.4% 那条前面**。
   // 削掉小数点的年代，B('2.4%左右') 会先撞上它 → 静默返回错误的节拍秒。
@@ -40,6 +45,10 @@ const beats = [
   // 连着的点：2.1.2 的 (\d)\.(\d) 一次吃掉右边的数字，'2.0.1' 只护住第一个点，成了 '2.01'
   { text: '2.01 版太旧，', start: 8.0, end: 8.5 },
   { text: '2.0.1 版修好了，', start: 8.5, end: 9.0 },
+  // 一模一样的块优先（lessons #153）：一个系列 08-6 eo4 的两块挨着。2.2.3 以前取第一个匹配的块，
+  // 「提交」是「提交之后」的前缀、排在前面，B('提交之后') 落到 9.5 这一块，后一块用 B() 根本落不到。
+  { text: '提交；', start: 9.5, end: 10.0 },
+  { text: '提交之后，', start: 10.1, end: 11.0 },
 ];
 const seg = { id: 't', duration: 6.2, speech_end: 6.0, tail: 0.2 };
 
@@ -82,6 +91,18 @@ checkThrows('查不存在的 2.5% 应报错（别静默返回）', () => B('2.5%
 check('X.509 命中自己（不撞 X509）', B('X.509 证书'), 7.0);
 check('真的 X509 也能查到', B('X509'), 6.5);
 check('2.0.1 命中自己（连着的点都护住，不撞 2.01）', B('2.0.1 版'), 8.5);
+// ★ 一模一样的块优先于前面只是前缀匹配的块（lessons #153）
+check('一模一样的块优先：B(提交之后) 落在后一块，不落在前面的「提交；」', B('提交之后'), 10.1);
+check('Be 同规则', Be('提交之后'), 11.0);
+check('带标点也算一模一样', B('提交之后，'), 10.1);
+check('前一块照样查得到（它自己一模一样）', B('提交；'), 9.5);
+// 没有一模一样的块、匹配到不止一块：照旧落在第一块（check_beats_refs.py 把这种报成歧义，退出码 1）
+check('没有一模一样的块：照旧第一块', B('提交之'), 9.5);
+check('块文本是它的前缀（多写了尾巴）照旧命中', B('2.01 版太旧了吧'), 8.0);
+
+console.log('两份模板（subs.py / new_project.py）');
+check('new_project.py 的占位 beats 和 subs.py 的匹配器逐字相同',
+  stub && iife(stub[1]) === iife(m[1]) && iife(m[1]) !== undefined, true);
 
 if (failed) {
   console.error(`\n失败 ${failed} 项`);

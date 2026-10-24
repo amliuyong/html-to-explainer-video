@@ -119,11 +119,14 @@ window.__SEG__ = { id: "_template", duration: 9.0, speech_end: 8.2, tail: 0.8 };
       .replace(/\\u0000/g, '.');
   }
   function find(text) {
-    var t = norm(text);
+    // 一模一样的块优先：前面的「提交；」是「提交之后」的前缀，B('提交之后') 也要落在「提交之后，」那块
+    var t = norm(text), hit = null;
     for (var i = 0; i < B.length; i++) {
       var bt = norm(B[i].text);
-      if (bt === t || bt.indexOf(t) === 0 || t.indexOf(bt) === 0) return B[i];
+      if (bt === t) return B[i];
+      if (!hit && (bt.indexOf(t) === 0 || t.indexOf(bt) === 0)) hit = B[i];
     }
+    if (hit) return hit;
     throw new Error('B() 找不到节拍: ' + text);
   }
   window.B = function (text) { return find(text).start; };

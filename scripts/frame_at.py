@@ -37,6 +37,9 @@ import os
 import subprocess
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from qc_check import js_round, scene_frame_starts  # noqa: E402  —— 场景起点帧号只在 qc_check 定义（与渲染器同一条公式）
+
 
 # ── 每个项目的画布高度可能不同，但这两条带子是契约固定的（见 frame-contract.md） ──
 PROGRESS_BAND_PX = 12      # 0–12px 进度条带
@@ -172,16 +175,25 @@ def main() -> int:
     scenes, total = load_scenes(proj)
     tot_frames = int(total.get("total_frames") or 0)
 
+    # ★ 帧号口径必须和渲染器一致：场景帧范围 = [gf+1, 下一场的 gf]（f_ 文件名从 1 数），末场到 total_frames。
+    #   gf 用 qc_check.scene_frame_starts（累加 duration_sec + gap 再 Math.round）；拿 layout 的 start_sec
+    #   现算 round(s × fps)，在 .5 帧上会差一帧，「场景终态帧」就成了下一场的第 0 帧（lessons #154）。
+    lay = json.load(open(os.path.join(proj, "layout.json"), encoding="utf-8"))
+    gf = dict(scene_frame_starts(lay, pj.get("order") or [x[0] for x in scenes], fps, float(pj.get("gap") or 0)))
+    nxt = {a[0]: b[0] for a, b in zip(scenes, scenes[1:])}
+
+    def span(sid, s, e):
+        """(起帧, 止帧)，与渲染器写的 f_ 文件号一致。"""
+        b = gf.get(nxt[sid]) if sid in nxt else tot_frames
+        return gf.get(sid, js_round(s * fps)) + 1, max(1, b or js_round(e * fps))
+
     if args.list:
         print(f"全片 {len(scenes)} 个场景 · {total.get('video_duration_sec')}s · "
               f"{tot_frames} 帧 @{fps:g}fps\n")
         print(f"{'场景':<16}{'起':>9}{'止':>9}{'时长':>8}{'起帧':>8}{'止帧':>8}")
         for sid, s, d, e in scenes:
-            # ★ 帧号口径必须和渲染器一致：gf = round(cursorSec * fps)，
-            #   场景帧范围 = [gf+1, gfEnd]，所以起帧用 round 而不是 int
-            #   （用 int 会在 30fps 下每幕错开 1 帧，正好是最难发现的那种偏差）。
-            print(f"{sid:<16}{fmt(s):>9}{fmt(e):>9}{d:>7.2f}s"
-                  f"{round(s * fps) + 1:>8}{max(1, round(e * fps)):>8}")
+            a, b = span(sid, s, e)
+            print(f"{sid:<16}{fmt(s):>9}{fmt(e):>9}{d:>7.2f}s{a:>8}{b:>8}")
         return 0
 
     if not args.at:
@@ -203,7 +215,7 @@ def main() -> int:
     sid, s, d, e = hit
 
     n = max(1, min(round(t * fps) + 1, tot_frames or 10 ** 9))
-    n_final = max(1, min(round(e * fps), tot_frames or 10 ** 9))
+    n_final = max(1, min(span(sid, s, e)[1], tot_frames or 10 ** 9))
     src, miss = grab(n, frames_dir)
     src_final, _ = grab(n_final, frames_dir)
     falling_back = src is None and os.path.exists(video)
