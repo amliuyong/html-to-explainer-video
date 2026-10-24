@@ -109,8 +109,15 @@ jobs:
       - name: Truncated synthesis regression test
         run: python tests/test_tts_truncated.py
 
+      # --- B() 节拍匹配：词里的点不削（lessons #88、#143）；一模一样的块优先于前面只是前缀匹配的块，
+      #     subs.py 与 new_project.py 两份匹配器逐字相同（lessons #153）---
       - name: Beats matcher regression test
         run: node tests/test_beats_norm.mjs
+
+      # --- 节拍引用校验和 beats.js 落到同一块：匹配到不止一块、又没有一模一样的报歧义（退出码 1），
+      #     写明每块的最短写法；resolve() 与 node 里跑的 B() 逐条对（lessons #153）---
+      - name: Beats reference check regression test
+        run: python tests/test_check_beats_refs.py
 
       # --- 交给浏览器执行的源码字符串：模板字符串会吃掉 \d \- 这类转义（lessons #137）---
       # check_cover 的 pureNumber 正则因此退化，英文钩子被当成纯数字跳过，小卡片顶替成钩子。
@@ -128,7 +135,8 @@ jobs:
       - name: Frame lint regression test
         run: python tests/test_lint_frames.py
 
-      # --- 逐帧连续性：单帧跳动 / 场间硬切（B 段缺 numpy 或 ffmpeg 时自动跳过）---
+      # --- 逐帧连续性：单帧跳动 / 场间硬切（B 段缺 numpy 或 ffmpeg 时自动跳过）；
+      #     场景边界帧号和渲染器同一条公式：.5 帧上往上入、累加不舍入，C 段从 render_video.mjs 取源码逐场对（lessons #154）---
       - name: QC continuity regression test
         run: python tests/test_qc_continuity.py
 

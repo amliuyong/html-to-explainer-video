@@ -447,6 +447,9 @@ async function main() {
   // 帧号边界必须构造性无缝：先按累计时间一次算好每场起点，再令第 i 场终点 = 第 i+1 场起点。
   // 旧写法现场重算 `cursorSec+dur+gap`，浮点上可能差一个 ULP，舍入后正好差 1 →
   // 相邻场景之间漏 1 帧 → image2 解复用器遇缺号停止解码 → 成片中段断流（且 ffmpeg 退出码 0）。
+  // ★ qc_check.py 的 scene_frame_starts（frame_at.py 也用它）照抄这条公式：累加 duration_sec + gap、不舍入，
+  //   再 Math.round(× fps)。tests/test_qc_continuity.py 的 C 段取下面这几行在 node 里逐场对（lessons #154）——
+  //   改写法要两边一起改。
   const sceneStarts = [];
   {
     let c = 0;

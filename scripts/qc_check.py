@@ -17,7 +17,7 @@ qc_check.py —— 成片体检 + 抽帧速览图。
      · 单帧跳动：某帧与前后都不同、而前后彼此相同 → FAIL（帧在搭建期读布局，--workers 并行时
        某个进程量歪了，它负责的帧整块错位；跳动按固定周期出现就是这个症状，lessons #134）
      · 场间硬切：场景边界那一帧画面整体突变 → WARN（渲染器不做转场，出场过渡要写在每场尾部，
-       frame-contract.md「场间过渡」，lessons #135）
+       frame-contract.md「场间过渡」，lessons #135）。边界帧号与渲染器同一条公式（scene_frame_starts，lessons #154）
 
 用法：
   python qc_check.py --project . [--samples 12] [--skip-continuity]
@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import subprocess
 import sys
@@ -161,10 +162,32 @@ def hard_cuts(step, boundaries, thr=HARD_CUT_STEP):
     return [b for b in boundaries if 0 < b < len(step) and step[b] > thr]
 
 
-def scene_boundaries(layout, order, fps):
-    """[(场景 id, 该场第 0 帧的全局帧号)]，与 render_video.mjs 同口径 round(start_sec × fps)；首场除外。"""
-    return [(sid, int(round(float(layout[sid]["start_sec"]) * fps)))
-            for sid in order[1:] if sid in layout and "start_sec" in layout[sid]]
+def js_round(x):
+    """JS 的 Math.round：.5 往正无穷入（Python 的 round 是银行家舍入，4.5 → 4）。
+    不写 floor(x + 0.5)：x = 0.49999999999999994 时 x + 0.5 舍入成 1.0，Math.round 是 0。"""
+    f = math.floor(x)
+    return int(f) + (1 if x - f >= 0.5 else 0)
+
+
+def scene_frame_starts(layout, order, fps, gap):
+    """[(场景 id, 该场第 0 帧的全局帧号，0 起)]，含首场 —— 与 render_video.mjs 排场景起点是同一条公式（lessons #154）：
+
+        c = 0；按 order 每场 c += duration_sec + gap（浮点累加，不舍入）；第 i 场第 0 帧 = Math.round(c_i × fps)
+
+    gap 是 project.json 的 gap（渲染器 `pj.gap || 0`），缺的场按 0 秒长算（`layout[id]?.duration_sec || 0`）。
+    第 0 帧就是渲染器写的 f_{帧号 + 1}。不用 layout 的 start_sec：它舍入到了 3 位，Python round 又是银行家舍入，
+    09-2 tmo7 的 87.45 × 30 = 2623.5 → 2624，渲染器累加出来是 87.44999999999999 → 2623。
+    tests/test_qc_continuity.py 的 C 段从 render_video.mjs 取出那几行在 node 里跑，逐场对这个函数。"""
+    out, c = [], 0.0
+    for sid in order:
+        out.append((sid, js_round(c * fps)))
+        c += float((layout.get(sid) or {}).get("duration_sec") or 0) + gap
+    return out
+
+
+def scene_boundaries(layout, order, fps, gap):
+    """[(场景 id, 该场第 0 帧的全局帧号)]，首场除外；帧号与 render_video.mjs 一致（见 scene_frame_starts）。"""
+    return scene_frame_starts(layout, order, fps, gap)[1:]
 
 
 def scan_video(ff, path):
@@ -402,7 +425,8 @@ def main() -> int:
             fps = float(pj.get("fps") or 30)
             order = pj.get("order") or []
             lay = json.load(open(layout, encoding="utf-8")) if os.path.exists(layout) else {}
-            bounds = [x for x in scene_boundaries(lay, order, fps) if x[1] < res["n"]]   # --preview 片只算片内
+            bounds = [x for x in scene_boundaries(lay, order, fps, float(pj.get("gap") or 0))
+                      if x[1] < res["n"]]   # --preview 片只算片内
             starts = ([(order[0], 0)] if order else []) + bounds
             spikes = find_spikes(res["step"], res["skip"])
             report.append(f"- 逐帧比较 {res['n']} 帧（{SCAN_W} 宽灰度，去掉底部字幕带与进度条）")
