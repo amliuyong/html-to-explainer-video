@@ -109,6 +109,16 @@ jobs:
       - name: Truncated synthesis regression test
         run: python tests/test_tts_truncated.py
 
+      # --- 密钥脱敏不显示任何字符：只显示长度「已设置（35 个字符）」，不显示首尾字符
+      #     （lessons #155；假密钥，不联网、不需要真实密钥）---
+      - name: Key masking regression test
+        run: python tests/test_tts_key_masking.py
+
+      # --- .mjs 脚本 --help / -h 退出 0、未知标志退出 1，都不创建文件
+      #     （lessons #156；零依赖）---
+      - name: MJS argument handling regression test
+        run: node tests/test_mjs_args.mjs
+
       # --- B() 节拍匹配：词里的点不削（lessons #88、#143）；一模一样的块优先于前面只是前缀匹配的块，
       #     subs.py 与 new_project.py 两份匹配器逐字相同（lessons #153）---
       - name: Beats matcher regression test

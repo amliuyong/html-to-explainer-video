@@ -1,15 +1,24 @@
 #!/usr/bin/env node
 /**
- * 测试 .mjs 脚本的参数处理：--help 退出 0，未知标志退出非零，且都不创建文件。
+ * .mjs 脚本参数处理的回归测试（零依赖）。
+ *
+ * 守一件事（lessons #156）：
+ *
+ *   --help / -h 打印用法并退出 0，任何未知标志报错并退出 1，且都不创建文件。
+ *   2.2.4 以前 parseArgs 忽略未知标志，--help 被当成位置参数 → render_video.mjs --help
+ *   启动了真的渲染（60 s、500 帧、不用锁、并发时混文件）。
+ *
+ * 在临时目录里跑每个脚本的 --help / -h / --bogus / --unknown，检查退出码和是否创建文件。
+ * 失败即 process.exit(1)。
  */
-import assert from 'node:assert/strict';
-import { execSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, existsSync, readdirSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readdirSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
-const SCRIPT_DIR = join(import.meta.dirname, '..', 'scripts');
+const ROOT = join(fileURLToPath(import.meta.url), '..', '..');
+const SCRIPT_DIR = join(ROOT, 'scripts');
 const MJS_SCRIPTS = [
   'render_video.mjs',
   'cover_build.mjs',
@@ -18,7 +27,17 @@ const MJS_SCRIPTS = [
   'check_cover.mjs',
 ];
 
-function testScript(scriptName, { args = [], expectExit = 0, expectStderr = null, checkNoFiles = false } = {}) {
+const fails = [];
+
+function check(label, cond, msg = '') {
+  if (!cond) {
+    fails.push(`${label}${msg ? ': ' + msg : ''}`);
+  } else {
+    process.stdout.write(`  OK  ${label}\n`);
+  }
+}
+
+function testScript(scriptName, args, expectExit, expectStderr = null, checkNoFiles = false) {
   const scriptPath = join(SCRIPT_DIR, scriptName);
   const tmpDir = checkNoFiles ? mkdtempSync(join(tmpdir(), 'mjs-test-')) : null;
   
@@ -30,74 +49,50 @@ function testScript(scriptName, { args = [], expectExit = 0, expectStderr = null
   
   if (checkNoFiles && tmpDir) {
     const files = readdirSync(tmpDir);
-    assert.equal(files.length, 0, `${scriptName} ${args.join(' ')} 不应创建文件，但创建了: ${files.join(', ')}`);
+    if (files.length > 0) {
+      fails.push(`${scriptName} ${args.join(' ')} 不应创建文件，但创建了: ${files.join(', ')}`);
+    }
   }
   
   if (result.status !== expectExit) {
-    console.error(`${scriptName} ${args.join(' ')}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+    fails.push(`${scriptName} ${args.join(' ')} 应退出 ${expectExit}，实际退出 ${result.status}`);
   }
-  assert.equal(result.status, expectExit, 
-    `${scriptName} ${args.join(' ')} 应退出 ${expectExit}，实际退出 ${result.status}`);
   
   if (expectStderr !== null) {
-    assert.match(result.stderr || result.stdout, expectStderr,
-      `${scriptName} ${args.join(' ')} 的输出应匹配 ${expectStderr}`);
+    const output = result.stderr || result.stdout || '';
+    if (!expectStderr.test(output)) {
+      fails.push(`${scriptName} ${args.join(' ')} 的输出应匹配 ${expectStderr}，实际: ${output.slice(0, 100)}`);
+    }
   }
   
   return result;
 }
 
-test('render_video.mjs --help exits 0 and prints usage', () => {
-  const r = testScript('render_video.mjs', { 
-    args: ['--help'], 
-    expectExit: 0, 
-    expectStderr: /用法|usage/i,
-    checkNoFiles: true 
-  });
-});
+process.stdout.write('A. --help / -h 退出 0 并打印用法\n');
 
-test('render_video.mjs -h exits 0', () => {
-  testScript('render_video.mjs', { args: ['-h'], expectExit: 0, checkNoFiles: true });
-});
+for (const script of MJS_SCRIPTS) {
+  testScript(script, ['--help'], 0, /用法|usage/i, true);
+  check(`${script} --help`, true);
+  
+  testScript(script, ['-h'], 0, null, true);
+  check(`${script} -h`, true);
+}
 
-test('render_video.mjs --bogus exits non-zero', () => {
-  const r = testScript('render_video.mjs', { 
-    args: ['--bogus'], 
-    expectExit: 1,
-    checkNoFiles: true 
-  });
-  const output = r.stderr || r.stdout;
-  assert.match(output, /--bogus|unknown|未知/i, '--bogus 应报告未知标志');
-});
+process.stdout.write('\nB. 未知标志退出 1 并报错\n');
 
-test('cover_build.mjs --help exits 0', () => {
-  testScript('cover_build.mjs', { args: ['--help'], expectExit: 0, checkNoFiles: true });
-});
+for (const script of MJS_SCRIPTS) {
+  const flag = script === 'render_video.mjs' ? '--bogus' : '--unknown';
+  const result = testScript(script, [flag], 1, null, true);
+  const output = result.stderr || result.stdout || '';
+  const hasError = output.includes(flag) || /未知|unknown/i.test(output);
+  check(`${script} ${flag}`, hasError, hasError ? '' : `未提及 ${flag} 或"未知"`);
+}
 
-test('cover_build.mjs --unknown exits non-zero', () => {
-  testScript('cover_build.mjs', { args: ['--unknown'], expectExit: 1, checkNoFiles: true });
-});
-
-test('check_layout.mjs --help exits 0', () => {
-  testScript('check_layout.mjs', { args: ['--help'], expectExit: 0, checkNoFiles: true });
-});
-
-test('check_layout.mjs --unknown exits non-zero', () => {
-  testScript('check_layout.mjs', { args: ['--unknown'], expectExit: 1, checkNoFiles: true });
-});
-
-test('peek_frame.mjs --help exits 0', () => {
-  testScript('peek_frame.mjs', { args: ['--help'], expectExit: 0, checkNoFiles: true });
-});
-
-test('peek_frame.mjs --unknown exits non-zero', () => {
-  testScript('peek_frame.mjs', { args: ['--unknown'], expectExit: 1, checkNoFiles: true });
-});
-
-test('check_cover.mjs --help exits 0', () => {
-  testScript('check_cover.mjs', { args: ['--help'], expectExit: 0, checkNoFiles: true });
-});
-
-test('check_cover.mjs --unknown exits non-zero', () => {
-  testScript('check_cover.mjs', { args: ['--unknown'], expectExit: 1, checkNoFiles: true });
-});
+if (fails.length > 0) {
+  process.stdout.write('\n✗ 失败：\n');
+  for (const f of fails) {
+    process.stdout.write(`  - ${f}\n`);
+  }
+  process.exit(1);
+}
+process.stdout.write('\n✓ .mjs 参数处理回归全部通过\n');
