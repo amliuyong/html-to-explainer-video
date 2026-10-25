@@ -90,6 +90,12 @@ jobs:
       - name: Pause-letter block start regression test
         run: python tests/test_subs_pause_letter.py
 
+      # --- 英文块首带着前一句的标点（「. Today」「, and」）：时间戳分不出这一项里有没有停顿，读配音找开口，
+      #     块从开口往前退 0.125 s 起、只往后挪；中文片、插值的段、读不了音频时一块不动（lessons #158；
+      #     真实时间戳 + 真实能量包络，C 段用 ffmpeg 合成 MP3 跑真的 subs.py）---
+      - name: Carried punctuation block start regression test
+        run: python tests/test_subs_carried_punct.py
+
       # --- 阿里 TTS：SSE 多行 data 拼接 / 判错 / 时间戳映射回原文（不联网、不需要密钥）---
       - name: Aliyun TTS regression test
         run: python tests/test_tts_ali.py
@@ -162,6 +168,11 @@ jobs:
       #     （lessons #141）。B、C 段缺 numpy 或 ffmpeg 时自动跳过 ---
       - name: Timeline audio sync regression test
         run: python tests/test_timeline_build.py
+
+      # --- 语音之后的停留（project.json 的 hold）：算进 duration_sec、音轨补静音、__SEG__.duration 含停留、
+      #     字幕不挂到停留上，渲出来停留里片尾卡还在；id 拼错即报错（lessons #157；D 段要浏览器）---
+      - name: Scene hold regression test
+        run: python tests/test_scene_hold.py
 
       # --- frontmatter description 的长度上限 ---
       # 超长时本地一切正常，只有换到按 1024 字符扫描的加载器才会「整个技能消失」，

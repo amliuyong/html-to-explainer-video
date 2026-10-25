@@ -133,7 +133,7 @@ tl.to('.ev', { y: '-=26', duration: 2, ease: 'none' }, 0.8);                    
 | 字段 | 含义 |
 |---|---|
 | `speech_end` | 语音真实结束 —— 出场最早从这里开始，不压解说 |
-| `duration` / `gap` | 本场帧播到 `duration + gap`（末场 `gap = 0`：收在片尾，不出场） |
+| `duration` / `gap` | 本场帧播到 `duration + gap`（末场 `gap = 0`：收在片尾，不出场）。`duration` 含 `project.json` 的 `hold`（语音之后的静默停留，lessons #157）：下面这段出场照写，就排在停留之后；末场停在终态 |
 | `chapter_start` / `chapter_end` | 本场是一章第一场 / 下一场是新的一章 —— 换章用更重的过渡 |
 
 ```js
@@ -200,7 +200,7 @@ var tEnd = Be('证据');                                              // 该块�
   "$PY" <skill>/scripts/check_beats_refs.py --project . --only hook_q,r1_data
   ```
 - 兜底写法 `B('X') || 3.2` **禁止**：beats 缺失时要在构建期暴露，不是悄悄用旧数字。
-- `window.__SEG__`：`{id, duration, speech_end, tail, gap, chapter_start, chapter_end}` —— 帧尾呼吸：主体动画压在 `speech_end` 前，`duration - speech_end`（约 0.1–0.3s）留给静止收尾；`gap` 是本场之后的段间静默（出场写在 `[speech_end, duration + gap]` 里，末场为 0），`check_layout` 也靠它判断本场有没有出场。
+- `window.__SEG__`：`{id, duration, speech_end, tail, gap, chapter_start, chapter_end}` —— 帧尾呼吸：主体动画压在 `speech_end` 前，`duration - speech_end`（约 0.1–0.3s，有 `hold` 时再加上停留）留给静止收尾；`gap` 是本场之后的段间静默（出场写在 `[speech_end, duration + gap]` 里，末场为 0），`check_layout` 也靠它判断本场有没有出场。
 
 ## 渲染器注入的东西（帧作者零负担）
 

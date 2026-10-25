@@ -18,6 +18,10 @@ subs.py —— 字幕三出口 + 节拍器 beats.js。
   ⑥ 块首那一项要是「停顿 + 下一个英文词的首字母」（阿里：「：|p」+「andas」），块从这一项的结尾起，
      不从停顿开头起（lessons #144）；停顿并进的是 2–3 个字母（「；|Not」+「ion」）时，从这一项的结尾
      往前退 0.125 s（lessons #152）
+  ⑦ 英文片里块首那一项带着前一句的标点（「. Today」「, and」）时，读这一段的配音找开口，块从开口往前退
+     0.125 s 起，不从这一项的开头起 —— 只看时间戳分不出这一项里有没有停顿（lessons #158）
+  ⑧ project.json 的 hold（timeline_build 记进 layout 的 hold_sec）算进段时长与 __SEG__.duration，
+     不挂字幕：末块照旧收在语音真实结束（lessons #157）
 
 【本技能新增】beats.js 节拍器 —— 把每块的本地秒写进 frames/<id>.beats.js，
 场景 HTML 里用 B('文本') 拿到该词的起播秒，画面节拍直接对齐吐字节拍。
@@ -33,9 +37,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
+import subprocess
 import sys
+from array import array
+from itertools import accumulate
 
 FPS_DEFAULT = 30
 SUB_SIZE = 44
@@ -213,6 +221,25 @@ _LOWER = re.compile(r'[a-z]')
 _SHORT_PREFIX = re.compile(r'[A-Za-z][a-z]{1,2}')
 PAUSE_PREFIX_BACKOFF_SEC = 0.125
 
+# 英文片：前一句的标点并进下一个词（lessons #158）。阿里的英文词级时间戳给成「. Today」「. Colvenna」「, and」，
+# 这一项的开头离开口还有一截静音：一部英文片里 3 个块首比开口早 0.24 / 0.33 / 0.35 s（普通块 0.12 s）。
+# 只看时间戳分不出来 —— 同样带前置标点的「. Maintenance」「, MongoDB」开头就在开口前 0.10 / 0.13 s，
+# 项的时长、前面空档的长短、句号还是逗号都分不开这两类。所以读这一段的配音：
+#   在这一项开头附近（开头之后 CARRIED_PAUSE_REACH_SEC 以内开始）找第一段静音（≥ SILENCE_MIN_SEC、
+#   比段内峰值低 SILENCE_DB 以上），静音之后第一次到峰值 ONSET_DB 算开口（#144、#152 量开口的口径），
+#   块从开口往前退 PAUSE_PREFIX_BACKOFF_SEC（普通块的提前量）起 —— 只往后挪，不超过这一项的结尾。
+# 两部英文片（Andy_v3.1，+0%）42 个块首里带前置标点的 28 个，插值的段（#140）里 4 个不看；24 个里 11 个挪了
+# （早 0.13–0.35 s → 0.125 s），13 个不动（10 个本来只早 0.07–0.125 s，3 个开头附近没有停顿）。
+# 中文片的标点是全角的，碰不到这条。
+_CARRIED_PUNCT = re.compile(r'[\s|]*[.,;:!?…]')
+ENV_SR = 16000              # 量能量包络的采样率
+ENV_HOP_SEC = 0.005         # 包络一格 5 ms
+ENV_WIN_SEC = 0.02          # 每格取 20 ms 窗的均方能量
+SILENCE_DB = -45.0
+SILENCE_MIN_SEC = 0.08
+ONSET_DB = -20.0
+CARRIED_PAUSE_REACH_SEC = 0.25
+
 
 def _t_of(w):
     if 't' in w:
@@ -251,11 +278,92 @@ def _word_onset_after_pause(words, k, wts, at, i):
     return end if one else end - PAUSE_PREFIX_BACKOFF_SEC
 
 
-def chunk_starts(tts_text, chunks, words, lead_cut):
+def ffmpeg_exe() -> str:
+    from shutil import which
+    p = which("ffmpeg")
+    if p:
+        return p
+    import imageio_ffmpeg
+    return imageio_ffmpeg.get_ffmpeg_exe()
+
+
+def speech_envelope(path):
+    """一段配音的能量包络：每 ENV_HOP_SEC 一格（第 i 格从 i × ENV_HOP_SEC 起），ENV_WIN_SEC 窗的均方能量，
+    换成 dB、相对这一段的峰值（峰值那格是 0）。读不了（文件不在、没有 ffmpeg、解不出声音）返回 None 并提醒。"""
+    pcm, why = array('h'), ''
+    try:
+        r = subprocess.run([ffmpeg_exe(), "-v", "error", "-i", path, "-f", "s16le", "-ac", "1",
+                            "-ar", str(ENV_SR), "-"], capture_output=True)
+        if r.returncode:
+            why = r.stderr.decode("utf-8", "replace").strip()[-160:] or f"ffmpeg 退出码 {r.returncode}"
+        else:
+            pcm.frombytes(r.stdout[:len(r.stdout) // 2 * 2])
+    except (OSError, ImportError) as e:
+        why = str(e)
+    if sys.byteorder == 'big':
+        pcm.byteswap()
+    hop, win = int(ENV_HOP_SEC * ENV_SR), int(ENV_WIN_SEC * ENV_SR)
+    energy = []
+    if len(pcm) >= win:
+        c = list(accumulate((v * v for v in pcm), initial=0))
+        energy = [c[i + win] - c[i] for i in range(0, len(pcm) - win + 1, hop)]
+    peak = max(energy, default=0)
+    if peak <= 0:
+        print(f'  ⚠ 读不了 {path}（{why or "没有声音"}）：块首带前置标点的块照旧从时间戳起（lessons #158）',
+              file=sys.stderr)
+        return None
+    return [10 * math.log10(e / peak) if e > 0 else -120.0 for e in energy]
+
+
+def onset_after_pause(env, start, end):
+    """[start, end)（裁后坐标系的秒）这一项里，开头之后 CARRIED_PAUSE_REACH_SEC 以内开始的第一段静音
+    （≥ SILENCE_MIN_SEC、低于峰值 SILENCE_DB）之后，第一次到峰值 ONSET_DB 的时刻（lessons #158）。
+    返回 None：找到静音之前已经到了 ONSET_DB（这一项开头就在念，后面的静音是词里的塞音闭塞）、
+    没有这样的静音、静音没在这一项里结束、或者开口不在这一项里。"""
+    i, n = max(0, int(round(start / ENV_HOP_SEC))), len(env)
+    last = min(n, int(round(end / ENV_HOP_SEC)))
+    reach = int(round((start + CARRIED_PAUSE_REACH_SEC) / ENV_HOP_SEC))
+    need = int(round(SILENCE_MIN_SEC / ENV_HOP_SEC))
+    while i < min(reach, last):
+        if env[i] >= ONSET_DB:
+            return None
+        if env[i] >= SILENCE_DB:
+            i += 1
+            continue
+        a = i
+        while a > 0 and env[a - 1] < SILENCE_DB:      # 这段静音从 start 之前就开始了
+            a -= 1
+        b = i
+        while b < n and env[b] < SILENCE_DB:
+            b += 1
+        if b - a < need:
+            i = b
+            continue
+        while b < last and env[b] < ONSET_DB:
+            b += 1
+        return b * ENV_HOP_SEC if b < last else None
+    return None
+
+
+def _carried_punct_start(w, env, lead_cut):
+    """块首那一项 w 带着前一句的标点（「. Today」，调用方已认过）时，块该从哪一秒起（裁后坐标系）：
+    开口往前退 PAUSE_PREFIX_BACKOFF_SEC，不早于这一项的开头。这一项里找不到停顿就返回 None。"""
+    if w.get('duration_sec') is None:
+        return None
+    start = _t_of(w) - lead_cut
+    onset = onset_after_pause(env, start, start + float(w['duration_sec']))
+    if onset is None:
+        return None
+    return max(start, onset - PAUSE_PREFIX_BACKOFF_SEC)
+
+
+def chunk_starts(tts_text, chunks, words, lead_cut, audio=None):
     """每块首字对齐到词边界秒（词边界为原始坐标系 → 减 lead_cut 平移）。
 
     块首那一项要是盖住了停顿的英文首字母（「：|p」+「andas」），块从这一项的结尾起（lessons #144）；
     盖住停顿的是 2–3 个字母（「；|Not」+「ion」）时，从这一项的结尾往前退 0.125 s（lessons #152）。
+    audio：这一段的配音（裁后坐标系，就是 audio/<id>.mp3）。给了的话，块首那一项带着前一句的标点
+    （「. Today」）时从开口往前退 0.125 s 起（lessons #158）；只在要用时才解码，subs.main 只给英文片传。
     """
     char_t = [None] * len(tts_text)
     char_k = [None] * len(tts_text)      # 每个字的时间戳来自第几项
@@ -278,7 +386,7 @@ def chunk_starts(tts_text, chunks, words, lead_cut):
             char_k[i] = k
         cur = p + len(wt)
 
-    starts, pos = [], 0
+    starts, pos, env = [], 0, None
     for c in chunks:
         st = None
         for i in range(pos, min(len(tts_text), pos + len(c))):
@@ -287,6 +395,12 @@ def chunk_starts(tts_text, chunks, words, lead_cut):
                 onset = _word_onset_after_pause(words, char_k[i], wts, at, i)
                 if onset is not None:
                     st = onset - lead_cut
+                elif audio and _CARRIED_PUNCT.match(words[char_k[i]].get('text', '')):
+                    if env is None:
+                        env = speech_envelope(audio) or []
+                    carried = _carried_punct_start(words[char_k[i]], env, lead_cut) if env else None
+                    if carried is not None:
+                        st = carried
                 break
         starts.append(st)
         pos += len(c)
@@ -459,7 +573,7 @@ def main() -> int:
 
     out = {'fps': fps, 'size': SUB_SIZE, 'safe_width': SUB_MAX_W,
            'budget': {'zh': SUB_BUDGET_ZH, 'en': SUB_BUDGET_EN}, 'segments': []}
-    warn_over = []
+    warn_over, holds = [], {}
 
     for item in narration:
         sid, text = item['id'], item['text']
@@ -470,8 +584,10 @@ def main() -> int:
         trimmed = bool(man.get('trimmed'))
 
         tts_text = ''.join(chunks)
+        # 英文片才按音频校正带前置标点的块首（lessons #158）：中文片一块不变；插值的段（#140）时间戳本来就对不上音频
+        audio = os.path.join(proj, 'audio', f'{sid}.mp3') if en_film and not m.get('even_timestamps') else None
         if words:
-            starts_sec = chunk_starts(tts_text, chunks, words, lead_cut)
+            starts_sec = chunk_starts(tts_text, chunks, words, lead_cut, audio=audio)
         else:
             total = float(m.get('container_duration_sec') or m.get('duration_sec') or 1.0)
             tot = max(1, sum(len(c) for c in chunks))
@@ -482,6 +598,8 @@ def main() -> int:
 
         # 两级时钟：段长 = 容器；末块收尾 = 语音真实结束（均为裁后坐标系）
         seg_container = float(m.get('container_duration_sec') or m.get('duration_sec') or 0.0)
+        # 停留（project.json 的 hold，timeline_build 记进 layout）算进段长、不挂字幕（lessons #157）
+        hold = float(layout.get(sid, {}).get('hold_sec') or 0.0)
         if trimmed and 'speech_end_sec' in m:
             speech_end = float(m['speech_end_sec'])
         else:
@@ -526,11 +644,13 @@ def main() -> int:
 
         out['segments'].append({
             'id': sid, 'text': text, 'chunks': chunks, 'tts_text': tts_text,
-            'start_sec': round(base, 3), 'duration_sec': round(seg_container, 3),
+            'start_sec': round(base, 3), 'duration_sec': round(seg_container + hold, 3),
             'speech_end_sec': round(speech_end, 3),
-            'tail_silence_sec': round(max(0.0, seg_container - speech_end), 3),
+            'tail_silence_sec': round(max(0.0, seg_container + hold - speech_end), 3),
             'blocks': blocks,
         })
+        if hold:
+            holds[sid] = hold
 
     sp = os.path.join(proj, 'subs.json')
     json.dump(out, open(sp, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
@@ -577,8 +697,9 @@ def main() -> int:
     print(f'[subs] {len(out["segments"])} 段 → {n_blocks} 块 · fps {fps}')
     print(f'[subs] → {sp} + frames/<id>.beats.js + {srt_p}(.vtt)')
     for s in out['segments']:
+        hold = f'，含停留 {holds[s["id"]]:.2f}s' if s['id'] in holds else ''
         print(f'  {s["id"]:<12} {len(s["blocks"])} 块  语音止 {s["speech_end_sec"]:>6.2f}s '
-              f'/ 容器 {s["duration_sec"]:>6.2f}s（尾静音 {s["tail_silence_sec"]:.2f}s 不挂字幕）')
+              f'/ 容器 {s["duration_sec"]:>6.2f}s（尾静音 {s["tail_silence_sec"]:.2f}s 不挂字幕{hold}）')
     if warn_over:
         print(f'⚠ {len(warn_over)} 块超预算（自动缩字号，>1.3× 折两行压内容区，按缺陷处理）：')
         for sid, c in warn_over[:8]:
