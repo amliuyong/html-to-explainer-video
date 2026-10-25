@@ -43,6 +43,7 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { validateArgsEarly } from './args_helper.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_ROOT = path.resolve(__dirname, '..');
@@ -212,8 +213,29 @@ async function renderOne(browser, projectDir, spec, opts) {
   }
 }
 
+const KNOWN_FLAGS = new Set([
+  '--help', '-h', '--at', '--jpg', '--only', '--scale',
+  '--keep-frames', '--browser'
+]);
+
+function printUsage() {
+  process.stderr.write(`用法: node cover_build.mjs [项目目录] [选项]
+
+选项:
+  --help, -h         显示此帮助信息
+  --at <时刻>        封面时刻（默认 last，或秒数）
+  --jpg              输出 JPG 格式
+  --only <规格>      只渲染指定规格（169 / 34 / 916）
+  --scale <倍数>     缩放倍数
+  --keep-frames      保留 HTML 帧
+  --browser <路径>   指定浏览器路径
+`);
+}
+
 async function main() {
-  const args = parseArgs(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  validateArgsEarly(argv, KNOWN_FLAGS, printUsage);
+  const args = parseArgs(argv);
   const projectDir = path.resolve(args._[0] || '.');
   const pjPath = path.join(projectDir, 'project.json');
   if (!fs.existsSync(pjPath)) die(`没有 project.json：${pjPath}`);

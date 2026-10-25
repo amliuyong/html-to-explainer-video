@@ -29,6 +29,7 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { validateArgsEarly } from './args_helper.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -190,8 +191,30 @@ const guides = (o) => {
   return true;
 };
 
+const KNOWN_FLAGS = new Set([
+  '--help', '-h', '--at', '--at-sec', '--n', '--scale',
+  '--all', '--guides', '--safe-bottom'
+]);
+
+function printUsage() {
+  process.stderr.write(`用法: node peek_frame.mjs [项目目录] <场景ID> [选项]
+
+选项:
+  --help, -h             显示此帮助信息
+  --at <表达式>          指定时刻（0 / last / 1.5 / mid）
+  --at-sec <秒数>        指定绝对秒数
+  --n <数量>             输出多张关键帧
+  --scale <倍数>         缩放倍数
+  --all                  处理所有场景
+  --guides               绘制参考线
+  --safe-bottom <像素>   字幕禁区底边距
+`);
+}
+
 async function main() {
-  const args = parseArgs(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  validateArgsEarly(argv, KNOWN_FLAGS, printUsage);
+  const args = parseArgs(argv);
   const projectDir = path.resolve(args._[0] || '.');
   const pj = JSON.parse(fs.readFileSync(path.join(projectDir, 'project.json'), 'utf8'));
   const W = pj.width || 1920, H = pj.height || 1080;

@@ -2344,3 +2344,32 @@
     6 集全部通过，0 个 FAIL、0 个硬切 WARN。差一帧的边界上，旧口径量到的最大一步是 1.59（04-4 geo8 的第 1 帧 − 第 0 帧），新口径量的是真的换场那一步，
     最大 0.64（06-1 fover1），都远低于 2.0。FAIL（单帧跳动）本来就不看边界，边界只影响「场间硬切」WARN 和跳动归到哪一场。
     **通用规则**：两个脚本说「同口径」，要么调同一个函数，要么有测试拿另一边的源码逐个对；写在 docstring 里的「同口径」不算数。
+
+155. **★（2026-10-25）`tts_setup.py` 打印的「脱敏密钥」仍然显示首尾各 4 个字符，密钥片段会落进 transcript 与日志。**
+    2.2.1 新增脱敏显示 `key_masked` 时，`tts_volcano._mask()` 照抄了某个云服务 SDK 的格式：`sk-1234******5678（长度 23）`。
+    问题：阿里百炼的 API Key 是 `sk-` 开头、24 字符的 base64 编码，显示首 4 个 + 末 4 个就等于把 12 个字符的密钥熵暴露了 8 个（67%）。
+    火山 Access Key 20 字符，暴露了 40%。密钥的**任何字符**出现在 stdout / transcript / logs 里，都是安全事故隐患。
+
+    **1) 修法**：`_mask()` 只显示长度，不显示任何字符：`已设置（35 个字符）`。tts_ali / tts_volcano / tts_setup 三个脚本的所有输出路径
+    （状态显示、错误信息、测连接）都共用这一个 `_mask()`，一处改、全改对。空密钥照旧显示 `(未设置)`。
+    **2) 测试**：`tests/test_tts_key_masking.py` 测 `_mask()`、阿里与火山的 `describe_env()` 三条路径，断言脱敏结果不含密钥的
+    任何长度 ≥ 2 的子串、也不含首尾字符（纯数字子串跳过，因为可能与长度信息重合：假密钥 `sk-1234...` 有 23 字符，输出 `已设置（23 个字符）`，
+    测试不该因为 "23" 出现在输出里就失败）。用假密钥、在 scratch 目录里创建假 key 文件与 tts.env；**永不读取、cat、打印任何真实密钥**
+    （`~/ali_tts/*`、任何 `*.csv`、任何 `tts.env`）。
+    **通用规则**：密钥、token、签名的脱敏形式，不可显示原文的任何字符；打个星号、换成「已设置」或哈希、显示长度都可以，显示首尾不行。
+
+156. **★（2026-10-24）`render_video.mjs --help` 启动了真的渲染：跑了 60 秒、500 帧，直到 timeout 杀死。没有项目锁、没有人盯进度，并发时会混文件。**
+    根因：`parseArgs()` 忽略未知标志——`--help` 被当成位置参数，照常找 project.json、开浏览器、写 `render/` 目录。问题会发生在任何 `.mjs` 工具上，
+    包括 `cover_build`、`check_layout`、`peek_frame`、`check_cover`，只是 `render_video` 的持续时间最长、破坏性最大（渲染 30 秒就能写满磁盘）。
+    其他手写 parseArgs 的脚本（`lint_frames`、`frame_at` 等）是 Python，`argparse` 已经处理 `--help` 和未知标志，不受影响。
+
+    **1) 修法**：新增 `scripts/args_helper.mjs`，导出 `validateArgsEarly(argv, knownFlags, printUsage)`。在**任何文件操作、浏览器启动、
+    目录创建之前**调用它，传入所有已知标志的 Set（含 `--help` / `-h`）和打印用法的函数。检测到 `--help` / `-h` → 打印用法、退出 0；
+    检测到未知标志 → 打印错误 + 用法、退出 1。五个 `.mjs` 脚本（`render_video`、`cover_build`、`check_layout`、`peek_frame`、`check_cover`）
+    各有 `KNOWN_FLAGS` 列表（从 `parseArgs` 抄来）和 `printUsage()` 函数（抄 SKILL.md 的用法说明），在 `main()` 开头、`parseArgs()` 之前调用
+    `validateArgsEarly(process.argv.slice(2), KNOWN_FLAGS, printUsage)`。
+    **2) 测试**：`tests/test_mjs_args.mjs` 用 `spawnSync` 在临时目录里跑每个脚本的 `--help` / `-h` / `--bogus` / `--unknown`，
+    断言 `--help` 退出 0、输出含用法、不创建文件；未知标志退出 1、报告标志名、不创建文件。每个脚本 SKILL.md 里列的标志都能通过
+    `validateArgsEarly()`（覆盖所有已知标志，防遗漏）。
+    **通用规则**：手写 parseArgs 的脚本，检查 `--help` 与未知标志必须在做任何真正的工作之前；`--help` 是退出 0 的唯一理由，未知标志退 1；
+    检测逻辑抽共用函数，不在每个脚本里重写。

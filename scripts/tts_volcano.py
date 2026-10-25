@@ -245,11 +245,10 @@ def describe_env(project_dir: str = "") -> dict[str, str]:
 
 
 def _mask(secret: str) -> str:
+    """脱敏密钥 —— 只显示长度，不显示任何字符。"""
     if not secret:
         return "(未设置)"
-    if len(secret) <= 8:
-        return "*" * len(secret)
-    return f"{secret[:4]}{'*' * 6}{secret[-4:]}（长度 {len(secret)}）"
+    return f"已设置（{len(secret)} 个字符）"
 
 
 def _redact(text: str) -> str:
