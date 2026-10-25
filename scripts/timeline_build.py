@@ -6,6 +6,9 @@ timeline_build.py —— 全局时间轴：layout.json + 拼接音轨。
 做两件事：
   ① 按 project.json 的 order 把各段容器时长 + 段间 gap 排成全局时间轴
      → layout.json（每段 start_sec / duration_sec，渲染器与字幕都读它）
+     project.json 的 hold（{"场景id": 秒}）给那一场在自己的音频之后加几秒静默停留（片尾卡、要读完的图表）：
+     算进这一场的 duration_sec，layout 另记 hold_sec；音轨按槽位补静音，渲染器、qc、frame_at 照 layout 排，
+     subs 的末块字幕照旧收在语音真实结束（lessons #157）
   ② 把逐段 MP3 拼成一条 narration-full.mp3，每段**正好占住它在 layout 里的槽位**：
      解码 → 重采样 → apad + atrim 补齐/截到 round(duration_sec × sr) 个采样，
      段间静音也按采样数补到下一段的 round(start_sec × sr)。
@@ -23,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import subprocess
 import sys
@@ -39,6 +43,30 @@ def ffmpeg_exe() -> str:
 
 SR = 44100  # narration-full 的采样率
 MP3_FRAME = 1152  # libmp3lame 在 32 / 44.1 / 48 kHz（MPEG-1 Layer III）每帧的采样数
+
+
+def scene_holds(pj: dict, order: list) -> dict:
+    """project.json 的 hold → {场景 id: 停留秒}，只留 > 0 的（lessons #157）。
+
+    `"hold": {"close": 2.5}`：close 在自己的音频之后再静默停留 2.5 s。末场没有 gap，语音一停片子就完，
+    片尾的品牌锁定、署名来不及读；以前只能在项目里给 MP3 补静音、改 manifest，tts_build 一重跑就被覆盖。
+    写错了抛 ValueError：拼错的 id 不报错，就是静默不停留（同 --shutter-only 的道理）。
+    """
+    raw = pj.get("hold")
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise ValueError(f'project.json 的 hold 要写成 {{"场景id": 秒}}，例如 {{"close": 2.5}}；现在是 {raw!r}')
+    unknown = [k for k in raw if k not in order]
+    if unknown:
+        raise ValueError(f"project.json 的 hold 里这些场景不在 order 里：{', '.join(map(str, unknown))}")
+    holds = {}
+    for sid, sec in raw.items():
+        if isinstance(sec, bool) or not isinstance(sec, (int, float)) or not math.isfinite(sec) or sec < 0:
+            raise ValueError(f"project.json 的 hold.{sid} 要是 ≥ 0 的秒数，现在是 {sec!r}")
+        if round(float(sec), 3) > 0:                     # 舍入后是 0 的（0.0001）当没写
+            holds[sid] = round(float(sec), 3)
+    return holds
 
 
 def slot_samples(layout: dict, order: list, sr: int = SR) -> list:
@@ -127,6 +155,12 @@ def main() -> int:
               file=sys.stderr)
         return 1
 
+    try:
+        holds = scene_holds(pj, order)
+    except ValueError as e:
+        print(f"✗ {e}", file=sys.stderr)
+        return 1
+
     man_path = os.path.join(proj, "audio-manifest.json")
     if not os.path.exists(man_path):
         print("✗ 先跑 tts_build.py（缺 audio-manifest.json）", file=sys.stderr)
@@ -143,8 +177,11 @@ def main() -> int:
         if not it:
             print(f"✗ manifest 里没有 {nid}", file=sys.stderr)
             return 1
-        dur = round(float(it.get("container_duration_sec") or it["duration_sec"]), 3)
+        # 停留算进这一场：渲染器、qc、frame_at 都按 duration_sec 排，拼音轨按槽位补静音（apad）
+        dur = round(float(it.get("container_duration_sec") or it["duration_sec"]) + holds.get(nid, 0.0), 3)
         layout[nid] = {"start_sec": round(cursor, 3), "duration_sec": dur}
+        if nid in holds:
+            layout[nid]["hold_sec"] = holds[nid]
         parts.append(os.path.join(proj, "audio", f"{nid}.mp3"))
         cursor += dur + gap
 
@@ -170,7 +207,8 @@ def main() -> int:
     print(f"[timeline] {len(order)} 段 · gap {gap}s · 视频 {total:.2f}s / "
           f"{int(round(total * pj.get('fps', 30)))} 帧 · 音轨 {audio_total:.2f}s → {lp}")
     for nid in order:
-        print(f"  {nid:<12} start {layout[nid]['start_sec']:>7.2f}s  dur {layout[nid]['duration_sec']:>6.3f}s")
+        hold = f"  （含停留 {holds[nid]:.2f}s）" if nid in holds else ""
+        print(f"  {nid:<12} start {layout[nid]['start_sec']:>7.2f}s  dur {layout[nid]['duration_sec']:>6.3f}s{hold}")
     problem = length_problem(audio_total, total, pj.get("fps", 30))
     if problem:
         print(f"✗ {problem} —— narration-full.mp3 和画面对不上，别拿它渲染（lessons #136）", file=sys.stderr)
