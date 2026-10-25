@@ -18,6 +18,7 @@
   - `subs` 把停留算进段时长、`tail_silence_sec` 和 `__SEG__.duration`。模板里的出场（契约 10）自动排在停留之后；
     字幕不挂到停留上，末块和 SRT 照旧收在语音真实结束。
   - id 拼错（不在 order 里）、写成列表、负数、不是数字时，`timeline_build` 报错、退出码 1、不写 layout。
+  - `style_director` 的语速按「场长 − 停留」算，场长照旧含停留。
 - **英文片的字幕比开口早 0.24–0.35 s**（lessons #158）：阿里的英文词级时间戳把前一句的标点并进下一个词（`". Today"`、
   `". Colvenna"`、`", and"`），这一项的开头还在停顿里，块和挂在上面的 `B()` 一起提前。2.1.3、2.2.2 只管中文片里
   「停顿 + 1–3 个字母」那一项。
@@ -40,11 +41,11 @@
 ### 测试
 
 - `tests/test_scene_hold.py`（新，挂 CI）：
-  - A 段测 `scene_holds` 的收与拒。
+  - A 段测 `scene_holds` 的收与拒，和 `style_director` 的语速不含停留。
   - B 段跑真的 `timeline_build`：时长、起点、总帧数、停留是静音、拼错 id 退出码 1。
   - C 段跑真的 `subs`：段时长、`__SEG__.duration`、末块与 SRT 收在语音结束。
   - D 段跑真的渲染器：停留里片尾卡还在、字幕带是空的，中间那场的出场在停留之后。
-  - 旧代码上 15 项失败。
+  - 旧代码上 16 项失败。
 - `tests/test_subs_carried_punct.py`（新，挂 CI）：
   - A 段测 `onset_after_pause` 的护栏。
   - B 段照抄真实时间戳与 8 处真实能量包络：4 块挪、4 块不动，中文块首不读音频。

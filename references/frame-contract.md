@@ -133,7 +133,7 @@ tl.to('.ev', { y: '-=26', duration: 2, ease: 'none' }, 0.8);                    
 | 字段 | 含义 |
 |---|---|
 | `speech_end` | 语音真实结束 —— 出场最早从这里开始，不压解说 |
-| `duration` / `gap` | 本场帧播到 `duration + gap`（末场 `gap = 0`：收在片尾，不出场）。`duration` 含 `project.json` 的 `hold`（语音之后的静默停留，lessons #157）：下面这段出场照写，就排在停留之后；末场停在终态 |
+| `duration` / `gap` | 本场帧播到 `duration + gap`（末场 `gap = 0`：收在片尾，不出场）。`duration` 含 `project.json` 的 `hold`（语音之后的静默停留，lessons #157）：下面这段出场照写，`x0` 取 `duration − 0.15`，就排在停留之后；**有 hold 的场别从 `speech_end` 起淡出**，不然停留里画面就没了。末场停在终态 |
 | `chapter_start` / `chapter_end` | 本场是一章第一场 / 下一场是新的一章 —— 换章用更重的过渡 |
 
 ```js

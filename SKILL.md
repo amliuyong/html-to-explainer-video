@@ -335,7 +335,7 @@ FAIL 清零才算封面过。退出码 0/1，可直接挂流水线。
 | 帧时长 | MP3 **容器时长**（tts_build 裁首尾静音后回填）。词边界时长每段少 ~0.86s，用它必错位 |
 | 拼音轨 | 每段补齐 / 截到 `round(duration_sec × sr)` 个采样、放在 `round(start_sec × sr)`，与 layout 同口径。直接 concat 解码后的段每段早 ~36 ms，长片累计近 2 s；拼完解码量总长，差超过 1 帧即失败（lessons #136） |
 | 末块字幕收尾 | 语音**真实结束**（speech_end_sec）—— 两级时钟，混用则「字幕过了语音还没过」 |
-| 语音之后的停留 | `project.json` 写 `"hold": {"close": 2.5}`：这一场在自己的音频之后再静默停 2.5 s（片尾卡、商标署名、要读完的图表）。timeline_build 把它算进这一场的 `duration_sec`（layout 记 `hold_sec`），音轨补静音；`__SEG__.duration` 含停留，出场照旧排在 `[speech_end, duration + gap]`、在停留之后；字幕不挂到停留上。id 拼错、负数即报错退出。**别再给 MP3 补静音、改 manifest** —— tts_build 一重跑就覆盖（lessons #157） |
+| 语音之后的停留 | `project.json` 写 `"hold": {"close": 2.5}`：这一场在自己的音频之后再静默停 2.5 s（片尾卡、商标署名、要读完的图表）。timeline_build 把它算进这一场的 `duration_sec`（layout 记 `hold_sec`），音轨补静音；`__SEG__.duration` 含停留：出场照模板写（`x0 = min(max(speech_end, duration − 0.15), x1 − 0.3)`）就排在停留之后，**别从 `speech_end` 起淡出**，不然停留里画面就没了；字幕不挂到停留上。id 拼错、负数即报错退出。**别再给 MP3 补静音、改 manifest** —— tts_build 一重跑就覆盖（lessons #157） |
 | 字幕节拍 | 词级时间戳首字对帧号，绝不按字数插值（中文同字数时长差 3 倍）。阿里取 sentence-end 帧的 `sentence.words`（**需显式开 `word_timestamp_enabled`，且时间戳落在展开读法后的文本上 —— `tts_ali.py` 会映射回原文**，否则「2026→二零二六」的「二」误配后文「第二」，字幕整体提前数秒），edge 取 `WordBoundary`，火山取 `sentence.words[]`（**需显式开 `audio_params.enable_subtitle`，本包默认开**；不开会静默退回插值） |
 | 画面节拍 | 场景 HTML 里 `B('块文本')` 取该词起播秒排 GSAP —— 画面与吐字同源 |
 | 渲染 | **确定性 seek**：`tl.pause(t, false)` + CSS 动画 `currentTime=t×1000` → 截图 → ffmpeg 合成。无实时录制，html-video 的引导期/起播/字体坑整类不存在。**第二参必须传 `false`**，少了它 `onUpdate` 类回调被静默抑制（数字滚动恒为初值，见 lessons #27）。`--workers` 的每个页面截图前按顺序补齐跳过的帧，时间轴状态与顺序渲染一致（lessons #138） |

@@ -10,7 +10,7 @@
 
   A. onset_after_pause（零依赖）：静音盖住这一项的开头 / 开头之后不久才开始（前面是上一个词的弱尾音）→ 静音之后的开口；
      静音之前已经开口（后面那段静音是词里的闭塞）、静音太短、开始得太晚、没在这一项里结束、开口不在这一项里 → None。
-  B. chunk_starts（零依赖）：那部片子 4 段的真实时间戳 + 真实配音的能量包络（5 ms 一格，取整到 1 dB，只抄了带前置标点的
+  B. chunk_starts（零依赖）：那部片子 5 段的真实时间戳 + 真实配音的能量包络（5 ms 一格，取整到 1 dB，只抄了带前置标点的
      块首附近）：「. Today」「, and」「. Colvenna」「. The」挪到开口前 0.125 s；「: your」「, MongoDB」「, are」
      「. Maintenance」本来就不早，不动；不给音频照旧（和 2.2.5 逐块相同）；块首不带标点的段不解码音频；
      中文片的块首（全角标点，「，|过」「：|p」）一块不动、不读音频；#144 的「：|p」照旧由 #144 管。
@@ -256,9 +256,9 @@ try:
           ([0.0, 1.878], []))
     check("不给音频：和 2.2.5 逐块相同", [starts(HOOK_TEXT, HOOK, HOOK_LC), starts(CLOSE_TEXT, CLOSE, CLOSE_LC)],
           [[0.0, 2.674, 4.514, 7.234], [0.0, 2.676, 4.036]])
+    subs.speech_envelope = lambda p: None
     check("读不了音频（speech_envelope 返回 None）：照旧从时间戳起",
-          (setattr(subs, "speech_envelope", lambda p: None), starts(HOOK_TEXT, HOOK, HOOK_LC, audio="hook.mp3"))[1],
-          [0.0, 2.674, 4.514, 7.234])
+          starts(HOOK_TEXT, HOOK, HOOK_LC, audio="hook.mp3"), [0.0, 2.674, 4.514, 7.234])
 
     # 中文片的块首带的是全角标点（「，|过」「：|p」）：一块不动、一次音频都不读 —— 哪怕包络处处是静音
     subs.speech_envelope = lambda p: calls.append(p) or [-70.0] * 4000

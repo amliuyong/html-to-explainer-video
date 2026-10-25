@@ -64,7 +64,7 @@ def scene_holds(pj: dict, order: list) -> dict:
     for sid, sec in raw.items():
         if isinstance(sec, bool) or not isinstance(sec, (int, float)) or not math.isfinite(sec) or sec < 0:
             raise ValueError(f"project.json 的 hold.{sid} 要是 ≥ 0 的秒数，现在是 {sec!r}")
-        if sec > 0:
+        if round(float(sec), 3) > 0:                     # 舍入后是 0 的（0.0001）当没写
             holds[sid] = round(float(sec), 3)
     return holds
 

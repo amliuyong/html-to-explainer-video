@@ -386,7 +386,7 @@ def chunk_starts(tts_text, chunks, words, lead_cut, audio=None):
             char_k[i] = k
         cur = p + len(wt)
 
-    starts, pos, env = [], 0, None
+    starts, pos, env = [], 0, None       # env：None = 还没解码；[] = 解过了、读不了（不再解）
     for c in chunks:
         st = None
         for i in range(pos, min(len(tts_text), pos + len(c))):
@@ -697,9 +697,9 @@ def main() -> int:
     print(f'[subs] {len(out["segments"])} 段 → {n_blocks} 块 · fps {fps}')
     print(f'[subs] → {sp} + frames/<id>.beats.js + {srt_p}(.vtt)')
     for s in out['segments']:
-        hold = f'，含停留 {holds[s["id"]]:.2f}s' if s['id'] in holds else ''
+        hold_note = f'，含停留 {holds[s["id"]]:.2f}s' if s['id'] in holds else ''
         print(f'  {s["id"]:<12} {len(s["blocks"])} 块  语音止 {s["speech_end_sec"]:>6.2f}s '
-              f'/ 容器 {s["duration_sec"]:>6.2f}s（尾静音 {s["tail_silence_sec"]:.2f}s 不挂字幕{hold}）')
+              f'/ 容器 {s["duration_sec"]:>6.2f}s（尾静音 {s["tail_silence_sec"]:.2f}s 不挂字幕{hold_note}）')
     if warn_over:
         print(f'⚠ {len(warn_over)} 块超预算（自动缩字号，>1.3× 折两行压内容区，按缺陷处理）：')
         for sid, c in warn_over[:8]:

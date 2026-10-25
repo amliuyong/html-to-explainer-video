@@ -7,7 +7,7 @@
 （哪怕走缓存）就覆盖掉，忘了再补，成片悄悄少了这几秒。
 
   A. timeline_build.scene_holds（零依赖）：{"close": 2.5} 照收、0 秒不收；写成列表、id 拼错、负数、字符串、
-     布尔、NaN 都报错 —— 拼错的 id 不报错，就是静默不停留。
+     布尔、NaN 都报错 —— 拼错的 id 不报错，就是静默不停留。style_director 的语速不把停留算进去（场长照算）。
   B. 真的 timeline_build.py（要 ffmpeg）：两场 a（中间，停 0.5 s）、b（末场，停 1.5 s）。停留算进 duration_sec、
      layout 记 hold_sec，下一场的起点、总长、总帧数都跟着加；拼出的音轨里停留那段是静音，b 的 beep 落在
      start_sec + 段内偏移 ±10 ms。hold 里有拼错的 id 时退出码 1、不写 layout.json。
@@ -82,6 +82,7 @@ else:
     check('{"close": 2.5}：close 停 2.5 s', holds_fn({"hold": {"close": 2.5}}, ORDER), {"close": 2.5})
     check("整数秒也收、舍入到 3 位；0 秒不收", holds_fn({"hold": {"close": 3, "hook": 0}}, ORDER), {"close": 3.0})
     check("舍入到 3 位", holds_fn({"hold": {"close": 1.23456}}, ORDER), {"close": 1.235})
+    check("舍入后是 0 的当没写（不在 layout 里留 hold_sec: 0.0）", holds_fn({"hold": {"close": 0.0001}}, ORDER), {})
     for label, bad, needle in [("写成列表", ["close", 2.5], "{"), ("id 拼错", {"clsoe": 2.5}, "clsoe"),
                                ("负数", {"close": -1}, "close"), ("字符串", {"close": "2.5"}, "close"),
                                ("布尔", {"close": True}, "close"), ("NaN", {"close": float("nan")}, "close")]:
@@ -90,6 +91,26 @@ else:
             fails.append(f"hold {label} 应该报错，却照收了")
         except ValueError as e:
             check(f"hold {label}：报错，写明「{needle}」", needle in str(e), True)
+
+
+sd = _load("style_director", "scripts/style_director.py")
+with tempfile.TemporaryDirectory() as d:
+    # 47 字：念 5.5 s 是 fast（8.5 字/秒），连 4 s 停留一起算就成了 medium（4.9 字/秒）
+    json.dump({"slug": "t", "order": ["scale"], "fps": 30}, open(os.path.join(d, "project.json"), "w"))
+    json.dump([{"id": "scale", "text": "研发周期平均 10 到 15 年。|成功率不到 12%。|每 10000 个分子只有 1 个上市。"}],
+              open(os.path.join(d, "narration.json"), "w", encoding="utf-8"), ensure_ascii=False)
+    json.dump({"scale": {"start_sec": 0.0, "duration_sec": 9.5, "hold_sec": 4.0}, "_total": {"total_frames": 285}},
+              open(os.path.join(d, "layout.json"), "w"))
+
+    class _Args:
+        project, styles, band, pin, allow, mood, pace, seed, audience, dry_run = d, 0, 5.0, [], [], None, None, None, None, True
+
+    try:
+        sc = sd.build_plan(d, _Args())[0]["scenes"][0]
+        check("style_director：场长 9.5 s（含停留 4 s），语速按念的 5.5 s 算", (sc["duration_sec"], sc["pace"]),
+              (9.5, "fast"))
+    except Exception as e:                     # build_plan 的参数改了就报出来，别让整个测试崩掉
+        fails.append(f"style_director.build_plan 跑不起来：{e!r}")
 
 
 # ---------------- B–D 的工程 ----------------
@@ -111,7 +132,7 @@ def ff(*args, data=None):
 
 
 def container(path):
-    """tts_build 回填 container_duration_sec 的口径：ffmpeg 打印的 Duration:。"""
+    """ffmpeg 打印的 Duration:（tts_build 回填 container_duration_sec 的口径；成片时长也这么量）。"""
     err = subprocess.run([FF, "-hide_banner", "-i", path], capture_output=True, text=True, errors="replace").stderr
     h, m, s = err.split("Duration:")[1].split(",")[0].strip().split(":")
     return round(int(h) * 3600 + int(m) * 60 + float(s), 3)
@@ -261,7 +282,7 @@ try:
                         "--workers", "1", "--shutter", "0"], capture_output=True, text=True, errors="replace")
     out = (r.stdout or "") + (r.stderr or "")
     if r.returncode != 0:
-        if not NO_SKIP and re.search(r"浏览器|browser|chrom", out, re.I):
+        if not NO_SKIP and re.search(r"浏览器|browser|chrom|playwright", out, re.I):
             print("  SKIP 渲染器起不来（缺浏览器）\n" + "\n".join(out.splitlines()[-4:]))
             finish()
         fails.append("render_video 失败：\n" + "\n".join(out.splitlines()[-12:]))
@@ -291,11 +312,7 @@ try:
     check("最后一帧：卡片还在、没有字幕", (teal(card_last), sub_last), (True, 0))
     check("a 的停留里卡片还在（出场排在停留之后）、字幕带是空的", (teal(card_a_hold), sub_a_hold), (True, 0))
     check("b 在念的时候卡片在", teal(card_b_speech), True)
-    mp4 = os.path.join(d, "out", "hold.mp4")
-    dur = subprocess.run([FF, "-hide_banner", "-i", mp4], capture_output=True, text=True, errors="replace").stderr
-    hh, mm, ss = dur.split("Duration:")[1].split(",")[0].strip().split(":")
-    check("成片时长 = 总长（±1 帧）",
-          abs(int(hh) * 3600 + int(mm) * 60 + float(ss) - total) <= 1.0 / FPS + 0.02, True)
+    check("成片时长 = 总长（±1 帧）", abs(container(os.path.join(d, "out", "hold.mp4")) - total) <= 1.0 / FPS + 0.02, True)
 finally:
     shutil.rmtree(tmp, ignore_errors=True)
 

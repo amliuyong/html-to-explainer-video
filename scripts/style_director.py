@@ -503,12 +503,14 @@ def build_plan(project, args):
     assign = []
     for idx, s in enumerate(scenes_in_order):
         text = str(s.get("text") or "").replace("|", "")
-        dur = _num((layout.get(s["id"]) or {}).get("duration_sec"))
+        lay = layout.get(s["id"]) or {}
+        dur = _num(lay.get("duration_sec"))
         if dur is None:
             dur = round(max(2.0, len(text) / 4.8 + 0.8), 2)
         role = infer_role(idx, n, text)
         energy = infer_energy(text, role, mood)
-        pace = pace_over or infer_pace(len(text), dur)
+        # 语速只看念的那段：project.json 的 hold（语音之后的静默停留，lessons #157）算进场长、不算进语速
+        pace = pace_over or infer_pace(len(text), dur - _num(lay.get("hold_sec"), 0.0))
 
         ranked = []
         for e in pool:

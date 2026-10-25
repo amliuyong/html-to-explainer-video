@@ -2380,22 +2380,27 @@
     `audio/close.mp3` 补 2.5 s 静音、改写 manifest 的 `container_duration_sec`。`tts_build` 一重跑（哪怕走缓存）就把它覆盖掉，
     忘了再补一遍，成片就悄悄少这 2.5 s，什么都不报。
 
-    **1) 修法**：`project.json` 加 `hold`，按场景 id 写停留秒数：`"hold": {"close": 2.5}`。
+    **1) 定位**：场景帧长在三处定，三处都只认配音：`timeline_build` 取 manifest 的 `container_duration_sec` 排 `duration_sec`；
+    `subs` 也取它当段长、写进 `__SEG__.duration`；渲染器、`qc_check`、`frame_at` 照 layout 排。末场的 gap 是 0（`total` 减掉了最后一个 gap），
+    所以语音之后能停多久，只取决于 MP3 的尾静音（`tts_build` 裁剪时只留 0.12 s 收音）。要停得久，只能改配音本身 —— 正是那个绕法。
+
+    **2) 修法**：`project.json` 加 `hold`，按场景 id 写停留秒数：`"hold": {"close": 2.5}`。
     - `timeline_build.scene_holds()` 读它，算进那一场的 `duration_sec`，layout 另记 `hold_sec`。下一场的起点、总长、总帧数跟着加；
       拼音轨时每段本来就按槽位 `apad` 补齐（#136），停留那段就是静音，不用另外处理。
     - 渲染器、`qc_check`、`frame_at` 都按 layout 的 `duration_sec` 排，一行没改。
     - `subs` 读 layout 的 `hold_sec`，加进段时长、`tail_silence_sec` 和 beats.js 的 `__SEG__.duration`。这样契约 10 的出场照模板写
-      （`x0 = max(speech_end, duration − 0.15)`），自动排在停留之后；中间场也能停。字幕不挂到停留上：末块照旧收在 `speech_end`，
-      SRT 也是。
+      （`x0 = min(max(speech_end, duration − 0.15), x1 − 0.3)`），自动排在停留之后；中间场也能停。
+      自己写出场的，有 hold 的场别从 `speech_end` 起淡出。字幕不挂到停留上：末块照旧收在 `speech_end`，SRT 也是。
     - id 拼错、写成列表、负数、字符串、布尔、NaN，`timeline_build` 都报错、退出码 1、不写 layout。拼错的 id 不报错，就是静默不停留
       （同 `--shutter-only`）。
     - manifest 不动：它记的是配音本身；停留是排片的决定，和 `gap` 一样放在 `project.json`。
     - 没写 `hold` 的项目，layout 和 2.2.5 逐字节相同（一部 54 段的中文片实测）；subs、beats.js 也不因为这一条变。
       layout 只有写了 `hold` 的场才多一个 `hold_sec`；beats.js 的 `__SEG__` 不加字段，`duration` 本来就是「本场帧长」。
-    **2) 验证**：`tests/test_scene_hold.py`。A 段测 `scene_holds` 的收与拒；B 段用 ffmpeg 合成两场（中间停 0.5 s、末场停 1.5 s），
-    跑真的 `timeline_build`：时长、起点、总帧数、停留是静音、beep 落点 ±10 ms、拼错 id 时退出码 1；C 段跑真的 `subs`：段时长、
+    - `style_director` 的语速按「场长 − 停留」算：停留是画面的事，不是念得慢。场长照旧含停留。
+    **3) 验证**：`tests/test_scene_hold.py`。A 段测 `scene_holds` 的收与拒、`style_director` 的语速不含停留；
+    B 段用 ffmpeg 合成两场（中间停 0.5 s、末场停 1.5 s），跑真的 `timeline_build`：时长、起点、总帧数、停留是静音、beep 落点 ±10 ms、拼错 id 时退出码 1；C 段跑真的 `subs`：段时长、
     `__SEG__.duration`、末块与 SRT 收在语音结束；D 段跑真的渲染器：帧数含停留，停留里片尾卡还在、字幕带是空的，中间那场按模板写的
-    出场在停留之后才开始。旧代码上 15 项失败；只去掉 `subs` 那一半，C、D 段 4 项变红；不拦拼错的 id，4 项变红。
+    出场在停留之后才开始。旧代码上 16 项失败；只去掉 `subs` 那一半，C、D 段 4 项变红；不拦拼错的 id，4 项变红。
     实片：那部宣传片的临时副本换回没补静音的 `close.mp3`，写 `"hold": {"close": 2.5}` 重跑 `timeline_build` / `subs` / 渲染：
     close 9.1 s（绕法补完是 9.096 s，重新编码丢了 4 ms），总帧数同为 2389，成片同为 79.633 s；语音之后的 80 帧和绕法渲出的成片
     逐帧 PSNR ≥ 50 dB，`qc_check` 全部通过。
