@@ -28,6 +28,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { validateArgsEarly } from './args_helper.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_ROOT = path.resolve(__dirname, '..');
@@ -301,8 +302,26 @@ const PAGE_PROBE = `(() => {
   };
 })()`;
 
+const KNOWN_FLAGS = new Set([
+  '--help', '-h', '--only', '--json', '--browser', '--shot'
+]);
+
+function printUsage() {
+  process.stderr.write(`用法: node check_cover.mjs [项目目录] [选项]
+
+选项:
+  --help, -h         显示此帮助信息
+  --only <规格>      只检查指定规格（169 / 34 / 916）
+  --json             机读输出到 out/cover_check.json
+  --browser <路径>   指定浏览器路径
+  --shot             顺手输出 1x 预览图
+`);
+}
+
 async function main() {
-  const args = parseArgs(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  validateArgsEarly(argv, KNOWN_FLAGS, printUsage);
+  const args = parseArgs(argv);
   const projectDir = path.resolve(args._[0] || '.');
   if (!fs.existsSync(path.join(projectDir, 'frames'))) die(`不是项目目录（没有 frames/）：${projectDir}`);
 

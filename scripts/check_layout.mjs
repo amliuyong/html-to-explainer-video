@@ -26,6 +26,7 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { validateArgsEarly } from './args_helper.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -487,8 +488,29 @@ const audit = (o) => {
            findings, skipped, svgInfo, safeLine: SAFE_LINE };
 };
 
+const KNOWN_FLAGS = new Set([
+  '--help', '-h', '--only', '--ignore', '--safe-bottom',
+  '--safe-side', '--json', '--strict'
+]);
+
+function printUsage() {
+  process.stderr.write(`用法: node check_layout.mjs [项目目录] [选项]
+
+选项:
+  --help, -h              显示此帮助信息
+  --only <场景列表>       只检查指定场景（逗号分隔）
+  --ignore <ID列表>       忽略指定元素 ID（逗号分隔）
+  --safe-bottom <像素>    字幕禁区底边距（默认 170）
+  --safe-side <像素>      字幕禁区侧边距（默认 64）
+  --json                  机读输出到 out/layout.json
+  --strict                严格模式（遮挡也算错误）
+`);
+}
+
 async function main() {
-  const args = parseArgs(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  validateArgsEarly(argv, KNOWN_FLAGS, printUsage);
+  const args = parseArgs(argv);
   const projectDir = path.resolve(args._[0] || '.');
   const pj = JSON.parse(fs.readFileSync(path.join(projectDir, 'project.json'), 'utf8'));
   const W = pj.width || 1920, H = pj.height || 1080;

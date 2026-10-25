@@ -5,6 +5,23 @@
 
 ---
 
+## [2.2.5] — 2026-10-25
+
+### 修复
+
+- **`tts_setup.py` 打印的密钥脱敏显示首尾字符**（安全事故隐患）：`tts_volcano._mask()` 原来显示首 4 个、末 4 个字符
+  （`sk-1234******5678`），密钥片段会落进 stdout、transcript 和日志。这是 2.2.1 新增脱敏显示时的疏漏。
+  - 改成只显示长度，不显示任何字符：`已设置（35 个字符）`。阿里、火山两个引擎的 `describe_env()` 共用同一个 `_mask()`，
+    `tts_setup.py` 所有输出路径（状态、错误、测连接）都经过它。
+  - 测试用假密钥断言输出不含密钥的任何长度 ≥ 2 的子串，也不含首尾字符（纯数字子串跳过，因为可能与长度信息重合）。
+- **`.mjs` 脚本的 `--help` 触发真的渲染**（2026-10-24 案例：`render_video.mjs --help` 跑了 60 秒、500 帧，直到超时杀死）：
+  `parseArgs()` 忽略未知标志，所以 `--help` 被当成位置参数、照常开浏览器。
+  - 新增 `args_helper.mjs` 共用逻辑：`validateArgsEarly()` 在任何文件操作、浏览器启动之前检查 `--help` / `-h`（打印用法并退出 0）
+    和未知标志（报错并退出 1）。
+  - 应用到 `render_video.mjs`、`cover_build.mjs`、`check_layout.mjs`、`peek_frame.mjs`、`check_cover.mjs` 五个脚本。
+    每个脚本都有 `KNOWN_FLAGS` 列表和 `printUsage()` 函数，在 `main()` 开头、`parseArgs()` 之前调用 `validateArgsEarly()`。
+  - 测试每个脚本的 `--help` / `-h` 退出 0 且不创建文件，`--bogus` / `--unknown` 退出非零且不创建文件。
+
 ## [2.2.4] — 2026-10-24
 
 ### 修复

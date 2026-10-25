@@ -67,6 +67,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { validateArgsEarly } from './args_helper.mjs';
 import { execFileSync } from 'node:child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -387,9 +388,39 @@ async function captureBytes({ page, cdp }) {
 const pad6 = (n) => String(n).padStart(6, '0');
 const frameName = (n, ext) => `f_${pad6(n)}.${ext}`;
 
+const KNOWN_FLAGS = new Set([
+  '--help', '-h', '--out', '--profile', '--list-profiles', '--quality',
+  '--preview', '--fps', '--shutter', '--shutter-flush', '--shutter-only',
+  '--samples', '--motion-gap', '--motion-hold', '--samples-min', '--samples-max',
+  '--workers', '--concurrency', '--recycle', '--resume', '--jpeg', '--jpeg-quality',
+  '--png-fast', '--crf', '--preset', '--scale', '--audio', '--keep-frames',
+  '--paint-history', '--mux-only', '--only', '--browser'
+]);
+
+function printUsage() {
+  process.stderr.write(`用法: node render_video.mjs [项目目录] [选项]
+
+选项:
+  --help, -h             显示此帮助信息
+  --profile <档位>       渲染档位（draft / balanced / final / master / legacy）
+  --list-profiles        列出可用档位
+  --quality <画质>       1080p / 2k / 4k
+  --fps <帧率>           帧率（默认 30）
+  --shutter <角度>       快门角度（运动模糊）
+  --workers <数量>       并行浏览器数
+  --out <路径>           输出 MP4 路径
+  --resume               断点续渲
+  --preview <秒数>       只渲染前 N 秒（打样）
+
+更多选项见 SKILL.md 或 --list-profiles
+`);
+}
+
 // ---------- 主流程 ----------
 async function main() {
-  const args = parseArgs(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  validateArgsEarly(argv, KNOWN_FLAGS, printUsage);
+  const args = parseArgs(argv);
   if (args.listProfiles) { printProfiles(); return; }
 
   const projectDir = path.resolve(args._[0] || '.');
