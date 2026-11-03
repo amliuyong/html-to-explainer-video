@@ -275,7 +275,7 @@ def synth(text, d, provider="ali", rate=RATE, cache=True):
         try:
             r = asyncio.run(tb.synth(text, os.path.join(d, "audio", "s1.mp3"), "xuyuyuan_v3.1", rate,
                                      cache_dir=os.path.join(d, "cache") if cache else "", trim=False,
-                                     provider=provider))
+                                     provider=provider, model="flash"))
         except BaseException as ex:  # noqa: BLE001  —— edge 抛 SystemExit
             r = ex
     return r, err.getvalue()
@@ -352,7 +352,7 @@ print("C. 坏的缓存：读的时候认出来")
 def seed_cache(d, bounds, secs):
     """往 TEXT 的缓存位置塞一条（2.2.0 会写进去的那种）。"""
     mp3, js = tb.cache_paths(TEXT, "xuyuyuan_v3.1", RATE, tb.DEFAULT_VOLUME, tb.DEFAULT_PITCH,
-                             os.path.join(d, "cache"), False, provider="ali")
+                             os.path.join(d, "cache"), False, provider="ali", model="flash")
     with open(mp3, "wb") as f:
         f.write(b"".join(fake_audio(*secs)))
     with open(js, "w", encoding="utf-8") as f:

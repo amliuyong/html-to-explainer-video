@@ -16,7 +16,7 @@ picture automatically.
 
 | | |
 |---|---|
-| **Voice-over** | Defaults to **Alibaba Cloud Model Studio `qwen-audio-3.1-tts-flash`** (character-level timestamps, 18 tested voices). Switch to edge-tts (no key needed) or Volcengine TTS 2.0. All three produce the same manifest, so nothing downstream changes |
+| **Voice-over** | Defaults to **Alibaba Cloud Model Studio `qwen-audio-3.1-tts-plus`** with `longanfengyue_v3.1`; choose Plus/Flash before selecting a compatible voice with character-level timestamps. Switch to edge-tts (no key needed) or Volcengine TTS 2.0. All three produce the same manifest, so nothing downstream changes |
 | **Subtitles** | Chunked on word/character timestamps, burned in, and exported as SRT / VTT. Spoken expansions ("2026" read as words) are mapped back to the original text, so subtitles do not drift. A chunk whose first timestamp is a pause merged into the next English word's first letter (or first 2–3 letters) starts where the word does; in English films, a chunk whose first word carries the previous sentence's punctuation (`. Today`) starts where the audio shows the word begins. Dots inside tokens (`2.4%`, `X.509`) stay |
 | **Visuals** | HTML + CSS + GSAP at 1920×1080 or portrait; 23 style templates in 8 categories plus a 40+ motion vocabulary; `style_director.py` reads the script and picks a style and motion intensity per scene |
 | **Sync** | Scenes call `B('subtitle chunk')` to get that chunk's start second; scene length is the MP3 container duration, the narration track pads every segment to that same length sample-exactly (no drift in long videos), and the last subtitle ends when speech really ends; `hold` in `project.json` keeps a scene on screen for a few silent seconds after its narration (end cards) |
@@ -91,16 +91,21 @@ Start a new session afterwards so the agent rescans its skills.
    dashScope,<base URL of your workspace endpoint, starting with https://>
    ```
 
-3. Check the connection and pick a voice:
+3. Pick a model, then a compatible voice and test the connection:
 
    ```bash
    python scripts/tts_ali.py --check                 # synthesizes one line; secrets are masked
-   python scripts/tts_ali.py --voices                # built-in voices
-   python scripts/tts_setup.py --project . --provider ali --voice xuyuyuan_v3.1   # writes project.json
+   python scripts/tts_setup.py --project . --provider ali --list-models
+   python scripts/tts_setup.py --project . --provider ali --model plus --list-voices
+   python scripts/tts_setup.py --project . --provider ali --model plus --voice longanfengyue_v3.1
    ```
 
-The default voice is `xuyuyuan_v3.1` (female, Mandarin); English projects default to `Andy_v3.1`. The 3.1 model only
-accepts `*_v3.1` voices. Speaking rate uses the `+N%` form (new projects default to `+8%`).
+Aliyun offers only `qwen-audio-3.1-tts-plus` (default) and `qwen-audio-3.1-tts-flash`; 3.0 and earlier models are excluded.
+Plus defaults to `longanfengyue_v3.1` (龙安风悦_v3.1, female) for both Mandarin and English.
+Flash defaults to `xuyuyuan_v3.1` for Mandarin and `Andy_v3.1` for English.
+Use `--model flash --list-voices` for Flash voices. Each model has its own voice list with preview links.
+The wizard saves the model as `project.json.tts_model` and the voice as `project.json.voice`.
+Speaking rate uses the `+N%` form (new projects default to `+8%`).
 
 > The agent only calls `tts_ali.py`; it **never reads or prints the key file**. If the file is missing,
 > `tts_setup.py` prints `NEXT_ACTION=fill_ali_key` and stops so you can add it.
@@ -124,7 +129,7 @@ For example:
 
 > Use html-to-explainer-video to make a 5-minute explainer on how vector databases search, for backend engineers.
 
-The agent stops at seven decision points (palette, style, format, voice engine and voice, length and aspect ratio,
+The agent stops at seven decision points (palette, style, format, voice engine/Aliyun model/voice, length and aspect ratio,
 covers, render channel) and continues only after you decide.
 
 ### Run the pipeline by hand

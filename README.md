@@ -13,7 +13,7 @@
 
 | | |
 |---|---|
-| **配音** | 默认 **阿里云百炼 `qwen-audio-3.1-tts-flash`**（字级时间戳，18 个实测音色）；也可切 edge-tts（免密钥）或火山引擎语音合成 2.0。三种引擎产出同一种 manifest，下游零改动 |
+| **配音** | 默认 **阿里云百炼 `qwen-audio-3.1-tts-plus`** + `longanfengyue_v3.1`（龙安风悦_v3.1）；先选 Plus/Flash，再选模型支持的音色，提供字级时间戳。也可切 edge-tts（免密钥）或火山引擎语音合成 2.0。三种引擎产出同一种 manifest，下游零改动 |
 | **字幕** | 按词/字级时间戳切块、硬字幕烧录，同时输出 SRT / VTT；数字展开读法（「2026」→「二零二六」）会映射回原文，不会错位；停顿被并进英文词首字母（或前 2–3 个字母）时，块从开口处起；英文片里块首那个词带着前一句的标点（`. Today`）时，量配音找开口；`2.4%`、`X.509` 里的点照留 |
 | **画面** | HTML + CSS + GSAP，1920×1080 或竖版；23 个风格模板（8 类）+ 40 多个动效词汇；`style_director.py` 读解说词给每场挑风格与动效强度 |
 | **音画同步** | 场景里写 `B('块文本')` 取该字幕块的起播秒排动画；时长取 MP3 容器时长，拼音轨时每段按同一时长补齐到采样（长片不漂移），字幕收尾取语音真实结束；`project.json` 的 `hold` 让某一场在语音之后再静默停留几秒（片尾卡） |
@@ -85,15 +85,19 @@ bash ~/.claude/skills/html-to-explainer-video/setup_env.sh --install   # 自检 
    dashScope,<业务空间专属域名的 base URL，https:// 开头>
    ```
 
-3. 自检与选音色：
+3. 先选模型，再选对应音色并测连接：
 
    ```bash
    python scripts/tts_ali.py --check                 # 真合成一句，验证连通（密钥脱敏显示）
-   python scripts/tts_ali.py --voices                # 列出内置音色
-   python scripts/tts_setup.py --project . --provider ali --voice xuyuyuan_v3.1   # 写进 project.json
+   python scripts/tts_setup.py --project . --provider ali --list-models
+   python scripts/tts_setup.py --project . --provider ali --model plus --list-voices
+   python scripts/tts_setup.py --project . --provider ali --model plus --voice longanfengyue_v3.1
    ```
 
-默认音色 `xuyuyuan_v3.1`（许玉远，女声）；英文项目默认 `Andy_v3.1`。3.1 模型只认 `*_v3.1` 音色。
+阿里模型仅有 `qwen-audio-3.1-tts-plus`（默认）和 `qwen-audio-3.1-tts-flash`，不提供 3.0 及以下。
+Plus 中英文默认音色 `longanfengyue_v3.1`（龙安风悦_v3.1，女声）；
+Flash 中文默认许玉远，英文默认 `Andy_v3.1`。Flash 音色列表用 `--model flash --list-voices` 查看。
+候选按所选模型筛选并附试听链接，音色不能跨模型混用；模型与音色分别保存到 `project.json` 的 `tts_model`、`voice`。
 语速沿用 `+N%` 写法（新项目默认 `+8%`）。
 
 > 智能体只调用 `tts_ali.py`，**不读取、不打印密钥文件**。缺文件时 `tts_setup.py` 输出 `NEXT_ACTION=fill_ali_key` 并停下，由你来补。
@@ -117,7 +121,7 @@ bash ~/.claude/skills/html-to-explainer-video/setup_env.sh --install   # 自检 
 
 > 用 html-to-explainer-video 把「向量数据库是怎么检索的」做成一个 5 分钟的讲解视频，面向后端工程师。
 
-智能体会在七个确认点停下来问你（配色、风格、形态、配音方案与音色、时长与画幅、封面张数、渲染通道），
+智能体会在七个确认点停下来问你（配色、风格、形态、配音引擎/阿里模型/音色、时长与画幅、封面张数、渲染通道），
 你拍板后它才继续。
 
 ### 手动跑流水线
@@ -128,7 +132,7 @@ bash ~/.claude/skills/html-to-explainer-video/setup_env.sh --install   # 自检 
 SK=~/.claude/skills/html-to-explainer-video
 python $SK/scripts/new_project.py my-video my-video --topic "向量检索"   # 建项目
 cd my-video
-python $SK/scripts/tts_setup.py      --project . --provider ali           # 配音方案与音色
+python $SK/scripts/tts_setup.py      --project . --provider ali           # 配音引擎/阿里模型/音色
 python $SK/scripts/tts_build.py      --project .                          # 配音
 python $SK/scripts/timeline_build.py --project .                          # 全局时间轴
 python $SK/scripts/subs.py           --project .                          # 字幕 + 节拍器

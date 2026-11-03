@@ -21,7 +21,8 @@ bash <skill>/setup_env.sh          # 首台机器先跑一次
 
 顺手定三件事（共用层，晚改成本高）：
 - **主题**：`make_theme.py --topic "医疗" --use`（或 --preset violet/cyan/amber/mono）
-- **语言**：英文片 project.json 的 `lang`/`voice` 改 `en-US-GuyNeural`
+- **语言**：英文片 `project.json.lang` 设为 `en`；Plus 默认龙安风悦_v3.1，
+  Flash 英文默认 Andy_v3.1，edge 英文默认 en-US-GuyNeural；音色按所选引擎和模型选择。
 - **确认点 1**（与阶段 1 并行问）：「时长？中文还是英文？」
 
 ## 阶段 1 · 调研（20 分钟，1 个 agent）
@@ -63,14 +64,19 @@ bash <skill>/setup_env.sh          # 首台机器先跑一次
    text 内用 `|` 切字幕块（中文每块 ≤16 字，切点落在语义边界）
 2. 填 `project.json` 的 `order`（= id 顺序，可选 `chapters: [{title, startSegment}]`）
 3. **确认点 2**：全文 + 章节划分 + 字数/预估时长贴给用户
-4. **确认点 3 —— 配音方案与音色，必须问两件事**：
-   ① 方案：「edge-tts（免费、免密钥、开箱可用）还是火山引擎语音合成 2.0（音质更好，需 API Key）」
-   ② 音色：用 `--list-voices` 列候选让用户挑，也接受自定义音色 ID
+4. **确认点 3 —— 引擎 → 阿里模型 → 音色，按顺序选择**（本轮用户已经指定的选项直接沿用）：
+   ① 引擎：阿里云百炼（默认）、edge-tts（免费免密钥）、火山引擎语音合成 2.0。
+   ② 选阿里后展示 `--list-models`：只有 `qwen-audio-3.1-tts-plus`（默认）
+   和 `qwen-audio-3.1-tts-flash`，不展示 3.0 及以下。
+   ③ 模型选定后用 `--provider ali --model plus|flash --list-voices` 展示它支持的音色与试听；
+   Plus 默认龙安风悦_v3.1 / `longanfengyue_v3.1`。
+   再用 `--provider ali --model <所选模型> --voice <所选音色>` 保存并测连接，
+   配音选择写进 `consent.json`，包含引擎、模型和 voice ID。
 
 5. 跑设置向导 + 流水线（顺序不能乱）：
 
 ```bash
-"$PY" <skill>/scripts/tts_setup.py      --project .   # 定方案 + 音色；缺密钥会生成 tts.env 模板并停下
+"$PY" <skill>/scripts/tts_setup.py      --project .   # 引擎 → 阿里模型 → 音色 → 测连接
 "$PY" <skill>/scripts/tts_build.py      --project .
 "$PY" <skill>/scripts/timeline_build.py --project .
 "$PY" <skill>/scripts/subs.py           --project .
@@ -78,8 +84,9 @@ bash <skill>/setup_env.sh          # 首台机器先跑一次
 
    **选火山时的正确停顿姿势**：向导生成 `tts.env` 后退出码 2、打印 `NEXT_ACTION=fill_env`
    → 告诉用户「请打开这个文件填 API Key，填好告诉我」→ **agent 不要读该文件、不要代填**
-   → 用户说填好了 → `tts_setup.py --project . --check` 测连接 → 再选音色。
-   密钥纪律与排查见 `references/volcano-tts.md`。
+   → 用户说填好了 → `tts_setup.py --project . --check` 用已选音色测连接。
+   选阿里缺密钥时输出 `NEXT_ACTION=fill_ali_key`，用户补 CSV 后重跑 `--check`。
+   密钥纪律与排查见 `references/ali-tts.md` / `references/volcano-tts.md`。
 
 6. 核对成片时长落在用户要的区间（差 >15% 加/删句子重跑，别改语速硬凑）
 7. **定稿后不再改词**（帧时长与节拍全部随配音重排）

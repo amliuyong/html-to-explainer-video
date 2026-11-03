@@ -5,6 +5,29 @@
 
 ---
 
+## [2.3.0] — 2026-11-03
+
+### 新增
+
+- 阿里云配音先选模型，再选该模型支持的音色及试听。仅提供
+  `qwen-audio-3.1-tts-plus` / `qwen-audio-3.1-tts-flash`，不提供 3.0 及以下版本。
+- 默认模型改为 Plus，默认音色为龙安风悦_v3.1（`longanfengyue_v3.1`）。
+  Plus 系统音色目录提供 4 个旗舰音色；Flash 使用独立分类目录。
+- `tts_setup.py`、`tts_build.py`、`tts_ali.py` 支持 `--model plus|flash`。
+  向导保存 `project.json.tts_model` 和 `voice`，连接测试使用实际所选组合；
+  缺模型 / 音色时先请求选择，不调用 API。
+- 合成缓存包含模型 ID，manifest 记录实际模型。已知不兼容音色在本地拒绝，
+  同名但不同语种的音色要求使用序号或完整 ID。
+- 新增模型选择、HTTP 路由、缓存隔离及默认项目配置回归，进入 Linux / Windows CI。
+
+### 已有项目
+
+- 要继续使用原 Flash 配音，在 `project.json` 增加
+  `"tts_model": "qwen-audio-3.1-tts-flash"`；原中文许玉远、英文 Andy 可继续使用。
+- 切换 Plus 时，重跑向导并选择 Plus 音色；旧 Flash 音色不能直接混用。
+  Plus 中英文默认均为龙安风悦_v3.1。
+- 保留已有的流完整性、截断结果拒绝、切块符清洗、字幕对齐和密钥脱敏规则。
+
 ## [2.2.6] — 2026-10-25
 
 ### 修复

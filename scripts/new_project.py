@@ -25,6 +25,8 @@ import os
 import shutil
 import sys
 
+import tts_ali
+
 SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -59,11 +61,12 @@ def main() -> int:
         "order": [],               # 写完 narration.json 后把 id 按顺序填进来
         "theme": "violet",
         "progress": True,
-        # 配音引擎：ali = 阿里云百炼 qwen-audio-3.1-tts-flash（默认，密钥 ~/ali_tts/api_key.csv）；
+        # 配音引擎：ali = 阿里云百炼 qwen-audio-3.1-tts-plus（默认，密钥 ~/ali_tts/api_key.csv）；
         # edge = 免费免密钥；volcano = 火山引擎语音合成 2.0（需 tts.env）。
         # ★ 建项目后先问用户用哪个 —— python <skill>/scripts/tts_setup.py --project .
         "provider": "ali",
-        "voice": "xuyuyuan_v3.1" if args.lang == "zh" else "Andy_v3.1",
+        "tts_model": tts_ali.MODEL,
+        "voice": tts_ali.DEFAULT_VOICE if args.lang == "zh" else tts_ali.DEFAULT_VOICE_EN,
         "rate": "+8%",
     }
     json.dump(pj, open(os.path.join(proj, "project.json"), "w", encoding="utf-8"),

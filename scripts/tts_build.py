@@ -6,9 +6,9 @@ tts_build.py —— html-to-explainer-video 的配音与时间轴数据源。
 【三个 TTS 引擎】`--provider` / 环境变量 TTS_PROVIDER / project.json 的 provider 字段
 （优先级从左到右）。**跑之前先问用户用哪个**（SKILL.md 确认点 3）：
 
-  ali     默认。阿里云百炼 qwen-audio-3.1-tts-flash，字级时间戳。
+  ali     默认。阿里云百炼 qwen-audio-3.1-tts-plus，字级时间戳。
           密钥由 scripts/tts_ali.py 从 ~/ali_tts/api_key.csv 读取 —— 本文件从不接触密钥值。
-          音色默认 xuyuyuan_v3.1（许玉远，女声）；英文项目默认 Andy_v3.1。
+          Plus 默认 longanfengyue_v3.1（龙安风悦，女声）；Flash 中文默认许玉远，英文默认 Andy。
   edge    edge-tts 云端合成，免费、免密钥、有词级边界。
           VOICE 默认 zh-CN-YunxiNeural（云希）。
   volcano 火山引擎（豆包）语音合成 2.0。音质更好，**需要 API Key**。
@@ -55,7 +55,7 @@ html-video-workbuddy-driver 的 tts_edges.py 二次实战），核心五件事�
 
 用法（项目目录内）：
   python tts_build.py --project . [--provider ali|edge|volcano] [--rate +8%]
-                     [--voice xuyuyuan_v3.1] [--no-trim]
+                     [--model plus|flash] [--voice longanfengyue_v3.1] [--no-trim]
 产出：
   audio/<id>.mp3 + audio-manifest.json
 """
@@ -330,9 +330,11 @@ def _boundary_mode(provider: str) -> str:
     return {"edge": _boundary_kwarg(), "ali": tts_ali.BOUNDARY_MODE}.get(provider, "chars")
 
 
-def cache_paths(text, voice, rate, volume, pitch, cache_dir, trim, provider="edge"):
+def cache_paths(text, voice, rate, volume, pitch, cache_dir, trim, provider="edge", model=""):
     sig = (f"{provider}|{voice}|{rate}|{volume}|{pitch}|"
            f"{_boundary_mode(provider)}|{int(trim)}|{text}")
+    if provider == "ali":
+        sig = f"{tts_ali.resolve_model_token(model)}|{sig}"
     h = hashlib.sha1(sig.encode("utf-8"), usedforsecurity=False).hexdigest()[:16]
     d = os.path.join(cache_dir, "trim") if trim else cache_dir
     os.makedirs(d, exist_ok=True)
@@ -341,7 +343,7 @@ def cache_paths(text, voice, rate, volume, pitch, cache_dir, trim, provider="edg
 
 async def synth(text, out_path, voice, rate, volume=DEFAULT_VOLUME, pitch=DEFAULT_PITCH,
                 cache_dir="", timeout=None, retries=None, trim=True,
-                provider="edge", project_dir="", lang="") -> dict:
+                provider="edge", project_dir="", lang="", model="") -> dict:
     """合成一段。provider='edge' 走 edge-tts，'volcano' 走火山引擎，'ali' 走阿里云百炼
     （后两者的密钥由各自的接口包自理）。"""
     os.makedirs(os.path.dirname(os.path.abspath(out_path)) or ".", exist_ok=True)
@@ -355,7 +357,9 @@ async def synth(text, out_path, voice, rate, volume=DEFAULT_VOLUME, pitch=DEFAUL
         timeout = VOLCANO_TIMEOUT if timeout is None else timeout
         retries = VOLCANO_RETRIES if retries is None else retries
     elif provider == "ali":
-        # 阿里同样不熔读；展开读法（2026 → 二零二六）由 tts_ali.to_original 映射回送出去的文本
+        model = tts_ali.resolve_model_token(model)
+        voice = tts_ali.resolve_voice_token(voice, tts_ali.default_voice(model, lang), model)
+        # 阿里同样不熔读；展开读法由 tts_ali.to_original 映射回去掉切块符的文本
         spoken = plain
         timeout = ALI_TIMEOUT if timeout is None else timeout
         retries = ALI_RETRIES if retries is None else retries
@@ -369,7 +373,7 @@ async def synth(text, out_path, voice, rate, volume=DEFAULT_VOLUME, pitch=DEFAUL
         # 签名用去掉 `|` 的文本：含 `|` 的段签名变了，重配一次（2.1.1 的旧音频可能念了「竖线」）；
         # 不含 `|` 的段签名不变，照旧命中；以后只挪 `|` 的位置，送的文本一样，也不重配。
         cache_mp3, cache_js = cache_paths(plain, voice, rate, volume, pitch, cache_dir,
-                                          trim, provider=provider)
+                                          trim, provider=provider, model=model)
         if os.path.exists(cache_mp3) and os.path.exists(cache_js):
             cached = json.load(open(cache_js, encoding="utf-8"))
             # 缓存里必须连「首裁了多少」一起存。词边界是原始坐标系，下游 subs.py 靠
@@ -431,7 +435,8 @@ async def synth(text, out_path, voice, rate, volume=DEFAULT_VOLUME, pitch=DEFAUL
     async def _once_ali():
         # 同上：接口包负责读密钥文件、脱敏与错误分类；重试由下面的外层循环统一管
         r = await asyncio.to_thread(
-            tts_ali.synthesize, spoken, voice, rate, "mp3", 24000, timeout, 1, lang)
+            tts_ali.synthesize, spoken, voice, rate, "mp3", 24000, timeout, 1, lang,
+            model=model)
         if r.get("warning"):
             warns.append(str(r["warning"]))
         return r["audio"], r["boundaries"]
@@ -530,6 +535,8 @@ async def run(args) -> int:
         print(f"✗ 未知 provider：{provider}（只支持 {' / '.join(PROVIDERS)}）", file=sys.stderr)
         return 1
     lang = pj.get("lang") or ""
+    model = ""
+    model_arg = getattr(args, "model", "")
 
     if provider == "volcano":
         # project.json 里存的是显示名（「解说小明 2.0」），但 speaker 字段只认 ID。
@@ -538,13 +545,27 @@ async def run(args) -> int:
             args.voice or pj.get("voice") or "", tts_volcano.DEFAULT_VOICE)
         rate = args.rate or pj.get("rate") or 0
     elif provider == "ali":
-        raw_voice = args.voice or pj.get("voice") or ""
-        default = tts_ali.DEFAULT_VOICE_EN if lang == "en" else tts_ali.DEFAULT_VOICE
-        voice = tts_ali.resolve_voice_token(raw_voice, default)
+        try:
+            model = tts_ali.resolve_model_token(model_arg or pj.get("tts_model", ""))
+            raw_voice = args.voice or pj.get("voice") or ""
+            # 显式切模型但没指定音色时，使用所选模型的默认音色。
+            if model_arg and not args.voice:
+                try:
+                    previous = tts_ali.resolve_model_token(pj.get("tts_model", ""))
+                except tts_ali.AliTTSConfigError:
+                    previous = ""
+                if model != previous:
+                    raw_voice = ""
+            default = tts_ali.default_voice(model, lang)
+            voice = tts_ali.resolve_voice_token(raw_voice, default, model)
+        except tts_ali.AliTTSConfigError as e:
+            print(f"✗ {e}", file=sys.stderr)
+            return 1
         if tts_ali.is_foreign_voice(raw_voice):
             # 旧项目切到阿里时 project.json 里常留着 edge/火山的音色 ID
             print(f"  ⚠ 音色 {raw_voice} 不是阿里音色 → 改用 {voice}"
-                  f"（要固定下来：tts_setup.py --provider ali --voice <音色>）", file=sys.stderr)
+                  f"（要固定下来：tts_setup.py --provider ali --model {model} --voice <音色>）",
+                  file=sys.stderr)
         rate = args.rate or pj.get("rate") or DEFAULT_RATE
     else:
         voice = args.voice or pj.get("voice") or DEFAULT_VOICE_ZH
@@ -553,7 +574,8 @@ async def run(args) -> int:
     out_dir = os.path.join(proj, "audio")
     cache = os.path.join(out_dir, "cache")
     results = []
-    print(f"[tts] 引擎 {provider} · 音色 {voice} · 语速 {rate}", file=sys.stderr)
+    model_shown = f" · 模型 {model}" if provider == "ali" else ""
+    print(f"[tts] 引擎 {provider}{model_shown} · 音色 {voice} · 语速 {rate}", file=sys.stderr)
 
     for item in narration:
         key, text = item["id"], item["text"]
@@ -562,7 +584,7 @@ async def run(args) -> int:
                             voice=item.get("voice", voice), rate=item.get("rate", rate),
                             cache_dir="" if args.no_cache else cache,
                             trim=not args.no_trim, provider=provider, project_dir=proj,
-                            lang=lang)
+                            lang=lang, model=model)
         except Exception as e:  # noqa: BLE001
             if provider in ("volcano", "ali"):
                 print(f"✗ [{key}] {PROVIDER_LABEL[provider]}合成失败：\n{e}\n"
@@ -583,12 +605,14 @@ async def run(args) -> int:
         "provider": provider, "voice": voice, "rate": rate,
         "trimmed": not args.no_trim,
         "engine": {"volcano": "volcano doubao-tts-2.0 (seed-tts-2.0)",
-                   "ali": f"aliyun bailian {tts_ali.MODEL}"}.get(
+                   "ali": f"aliyun bailian {model}"}.get(
                        provider, f"edge-tts {edge_tts.__version__}"),
         "boundary_mode": {"edge": _boundary_kwarg(), "ali": tts_ali.BOUNDARY_MODE}.get(
             provider, "char-timestamps"),
         "items": results,
     }
+    if provider == "ali":
+        manifest["model"] = model
     mp = os.path.join(proj, "audio-manifest.json")
     json.dump(manifest, open(mp, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
     print(f"[tts] {len(results)} 段 → audio/ + {mp}")
@@ -605,9 +629,10 @@ def main() -> int:
     p = argparse.ArgumentParser(description="html-to-explainer-video 配音合成（阿里云百炼 / edge-tts / 火山引擎）")
     p.add_argument("--project", default=".")
     p.add_argument("--provider", default="", choices=["", *PROVIDERS],
-                   help="ali=阿里云百炼 qwen-audio-3.1-tts-flash（默认，密钥 ~/ali_tts/api_key.csv）；"
+                   help="ali=阿里云百炼 qwen-audio-3.1-tts-plus（默认，密钥 ~/ali_tts/api_key.csv）；"
                         "edge=免费免密钥；volcano=火山引擎语音合成 2.0（需 tts.env）")
     p.add_argument("--voice", default="")
+    p.add_argument("--model", default="", help="阿里模型：plus / flash / 完整模型 ID；覆盖 project.json 的 tts_model")
     p.add_argument("--rate", default="")
     p.add_argument("--no-trim", action="store_true", help="不裁首尾静音（不建议）")
     p.add_argument("--no-cache", action="store_true")

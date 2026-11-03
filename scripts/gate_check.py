@@ -26,7 +26,7 @@ agent 直接跑 style_director.py 就自选了风格，用户事后才发现「�
    - `theme`           配色方向（色号 + 气质描述）
    - `style`           风格候选的最终选定（可含 style_director 的建议，但选择权在用户）
    - `form`            影片形态（纯视觉 / 主视觉+章节讲解 / …）
-   - `voice`           配音方案 + 音色
+   - `voice`           配音方案 + 阿里模型 + 音色
    - `duration_sec`    目标时长
    - `cover`           封面规格（哪几张）
    - `render_channel`  渲染通道（**默认推荐 png-fast** / jpeg q95 / png / jpeg q82）★ 渲染前必问
@@ -46,7 +46,7 @@ REQUIRED = [
     ("theme", "配色方向（色号 + 一句气质描述）"),
     ("style", "风格候选的最终选定（可含建议，但选择权在用户）"),
     ("form", "影片形态（纯视觉 / 主视觉+章节讲解 / …）"),
-    ("voice", "配音方案 + 音色（阿里 / edge / 火山，及具体音色 ID）"),
+    ("voice", "配音方案 + 模型 + 音色（阿里 / edge / 火山；阿里须含 Plus / Flash，及具体 voice ID）"),
     ("duration_sec", "目标时长（秒）"),
     ("cover", "封面规格（16:9 / 3:4 / 9:16 各几张）"),
     ("render_channel", "渲染通道（**默认推荐 png-fast** / jpeg q95 / png / jpeg q82）—— 渲染前必须问，见 SKILL.md 确认点 5"),

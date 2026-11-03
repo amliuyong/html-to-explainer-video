@@ -1,6 +1,6 @@
 ---
 name: html-to-explainer-video
-version: 2.2.6
+version: 2.3.0
 description: 把任意主题做成讲解/科普视频并渲染成 MP4（HTML/CSS/GSAP 画面 + 确定性逐帧渲染 + 配音（默认阿里云百炼，可切 edge-tts / 火山）+ 词级硬字幕）。触发场景：要做科普/讲解/教学/知识/产品类视频、「讲一下 X 做成视频」、要挑某种视觉风格（极简/数据/赛博/电影感/品牌）出片、要出抖音封面/竖版封面/9:16 封面、要用 html-video 那种模板化画面但更稳的音画同步、anything2explainer 换 HTML 渲染，或提到 html-to-explainer-video / HTML 讲解视频 / explainer video / MG 视频。内置 23 个模板风格（8 类）与 40+ 动作词汇的动效库，主题驱动模板编排；支持 4K60、快门运动模糊、多进程提速、断点续渲；流程含六个用户确认点（渲染通道是硬闸门）。独立可移植，不依赖 html-video / anything2explainer。
 agent_created: true
 ---
@@ -29,7 +29,7 @@ agent_created: true
 | **★ 渲染通道确认**（渲染前必问：`png-fast` / `jpeg q95` / `png` / `jpeg q82`，**默认推荐 `png-fast`**，附速度与描述） | `consent.json` 的 `render_channel` + `gate_check.py --phase render` | `SKILL.md` 确认点 5 · `references/render-profiles.md` §0 |
 
 把一个主题做成**原创**讲解视频：任意风格的 MG 画面（HTML/CSS/GSAP，1920×1080 或竖版）、
-配音（默认阿里云百炼 `qwen-audio-3.1-tts-flash`，可切 edge-tts / 火山）、词级对齐硬字幕、全局进度条。一句话一个场景，画面节拍直接锚在
+配音（默认阿里云百炼 `qwen-audio-3.1-tts-plus`，可切 edge-tts / 火山）、词级对齐硬字幕、全局进度条。一句话一个场景，画面节拍直接锚在
 吐字时刻上（`B('块文本')` 节拍器）。
 
 ## ★ 画面风格库（23 个模板 / 8 个类别）
@@ -100,7 +100,7 @@ imageio-ffmpeg 静态二进制自动回退）。Windows 注意：项目路径全
 ```bash
 PY=<venv python 绝对路径>          # 派子 agent 时必须展开成绝对路径写进 prompt
 "$PY" <skill>/scripts/new_project.py <dir> <slug> --topic "主题"   # 阶段 0 建项目
-"$PY" <skill>/scripts/tts_setup.py      --project .   # ★ 先定配音方案 + 音色（问用户：阿里（默认）/ edge / 火山）
+"$PY" <skill>/scripts/tts_setup.py      --project .   # ★ 先选引擎；阿里再选 Plus / Flash，最后选音色
 "$PY" <skill>/scripts/tts_build.py      --project .   # 配音：audio/*.mp3 + manifest
 "$PY" <skill>/scripts/timeline_build.py --project .   # 全局时间轴：layout.json + narration-full.mp3
 "$PY" <skill>/scripts/subs.py           --project .   # 字幕：subs.json + beats.js + srt/vtt
@@ -117,9 +117,12 @@ node <skill>/scripts/check_cover.mjs    .             # 封面终态几何实测
 ```
 
 配音引擎（**跑之前必须先问用户**，见确认点 3）：`ali`（**默认**，阿里云百炼
-`qwen-audio-3.1-tts-flash`，字级时间戳，默认音色 `xuyuyuan_v3.1`）、`edge`（免费免密钥）或
+`qwen-audio-3.1-tts-plus`，字级时间戳，中文默认音色 `longanfengyue_v3.1`（龙安风悦））、`edge`（免费免密钥）或
 `volcano`（火山引擎语音合成 2.0，需 API Key）。三者产出的 manifest 结构一致，
 下游零改动。切换：`--provider ali|edge|volcano` 或 `TTS_PROVIDER` 环境变量。
+阿里只支持 `qwen-audio-3.1-tts-plus` / `qwen-audio-3.1-tts-flash` 两个模型（`--model plus|flash`），
+不提供 3.0 及以下版本。`project.json` 的 `tts_model` 保存模型，`voice` 保存音色；
+Plus 默认龙安风悦_v3.1，必须按所选模型的目录选音色，不能跨模型混用。
 **阿里密钥只存 `~/ali_tts/api_key.csv` —— agent 只调 `tts_ali.py`，不读、不打印该文件。**
 **火山密钥只存 `tts.env`（已 gitignore）—— agent 只调 `tts_volcano.py`，不读该文件。**
 详见 `references/ali-tts.md` / `references/volcano-tts.md`。
@@ -374,15 +377,25 @@ FAIL 清零才算封面过。退出码 0/1，可直接挂流水线。
    现在问清，后面就不用返工；用户说「按默认」就只做两张。
 2. **解说词**（30 分钟）：narration.json（`|` 切字幕块，中文 ≤16 字/块）→ 填 order → **确认点 2**（文案定稿）→ **确认点 3**（配音方案 + 音色）→ tts/timeline/subs 三连 → 核对时长区间（差 >15% 改句子，别改语速硬凑）→ **定稿后不改词**
 
-   **确认点 3 必须问两件事**（用 `tts_setup.py` 落实）：
-   ① **方案** —— 「配音用阿里云百炼 qwen-audio-3.1-tts-flash（**默认推荐**，密钥已在
+   **确认点 3 按顺序选择引擎 → 阿里模型 → 音色**（用 `tts_setup.py` 落实；
+   用户本轮已经指定的选项直接沿用，不重复提问）：
+   ① **方案** —— 「配音用阿里云百炼（**默认推荐**，密钥文件
      `~/ali_tts/api_key.csv`）、edge-tts（免费、免密钥、开箱可用），还是火山引擎语音合成 2.0
      （需要 API Key，约 1 分钟配置）」；
-   ② **音色** —— 选定方案后列候选让用户挑（`tts_setup.py --provider ali --list-voices`），也可自定义 ID。
-   选阿里时：`tts_setup.py --provider ali` 会测连接；读不到密钥文件 → 输出 `NEXT_ACTION=fill_ali_key`
-   并**停下来**让用户补（**agent 不读该文件、不参与填值**）。
+   ② **阿里模型** —— 选阿里后先展示 Plus / Flash（`tts_setup.py --project . --provider ali --list-models`）：
+   `qwen-audio-3.1-tts-plus` 默认，侧重音质与内容制作；`qwen-audio-3.1-tts-flash` 侧重低延迟与成本。
+   **仅这两个 3.1 模型，不展示 3.0 及以下版本。**
+   ③ **音色** —— 模型选定后再列它支持的音色及试听：
+   `tts_setup.py --project . --provider ali --model plus --list-voices`（Flash 用 `--model flash`）。
+   Plus 默认 **龙安风悦_v3.1 / `longanfengyue_v3.1`**，另外可选龙安灵心_v3.1、许南川、龙安欢_v3.1；
+   Flash 按多语种与方言、中文、英文、其他系统音色、小语种提供候选。
+   名称、序号、voice ID 均可；自定义复刻音色由服务端验证兼容性。
+   选择后用 `tts_setup.py --project . --provider ali --model plus --voice longanfengyue_v3.1` 保存并测连接。
+   非交互调用缺模型 / 音色分别输出 `NEXT_ACTION=ask_user_model` / `ask_user_voice`，先完成选择再调用 API。
+   读不到密钥文件 → 输出 `NEXT_ACTION=fill_ali_key` 并**停下来**让用户补
+   （**agent 不读该文件、不参与填值**）。确认结果写入 `consent.json`，配音选择包含引擎、模型及 voice ID。
    选火山时：缺 `tts.env` → `tts_setup.py` 生成空模板并**停下来**，让用户手工填密钥
-   （**agent 不读该文件、不参与填值**）；用户说填好了 → `--check` 测连接 → 再选音色。
+   （**agent 不读该文件、不参与填值**）；用户说填好了 → `--check` 用已选音色测连接。
    ★ 提醒用户用 `cp tts.env.example tts.env` **复制**，别把 `tts.env.example` **改名**成
    `tts.env` —— 那是要留在仓库里的模板（改名会让 `check_integrity.py` 报错）。
    详见 `references/ali-tts.md` / `references/volcano-tts.md`。
@@ -527,8 +540,8 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 | 路径 | 作用 |
 |---|---|
 | `scripts/new_project.py` | 阶段 0 脚手架：建目录树 + `project.json` + `narration.json` 占位 + `theme.css` + 两份封面 HTML（16:9 + 3:4；9:16 按投放需要自己加，注释里给了做法） |
-| `scripts/tts_setup.py` | **配音方案向导**：选阿里/edge/火山 → 缺密钥则停下（阿里 `fill_ali_key`；火山生成 `tts.env` 模板后 `fill_env`）→ 测连接 → 选音色 → 写回 project.json。输出 `NEXT_ACTION=…` 供 agent 判断下一步 |
-| `scripts/tts_ali.py` | **阿里云百炼 qwen-audio-3.1-tts-flash 接口包**（默认引擎）：唯一读 `~/ali_tts/api_key.csv` 的地方；SSE 多行 data 拼接、按 code 判错、时间戳映射回原文；`--check` / `--voices` / `--synth`。密钥不回显、异常脱敏（`_redact`） |
+| `scripts/tts_setup.py` | **配音方案向导**：选引擎 → 阿里选 Plus / Flash → 按模型选音色 → 写回 project.json → 测连接。缺密钥输出 `fill_ali_key` / `fill_env`；未选模型或音色输出 `ask_user_model` / `ask_user_voice` |
+| `scripts/tts_ali.py` | **阿里云百炼 3.1 Plus / Flash 接口包**（默认 Plus）：唯一读 `~/ali_tts/api_key.csv` 的地方；按模型验证音色、SSE 解析、时间戳映射回原文；`--model` / `--check` / `--voices` / `--synth`。密钥不回显、异常脱敏 |
 | `scripts/tts_volcano.py` | **火山引擎语音合成 2.0 接口包**：唯一读 `tts.env` 的地方；`--check` / `--voices` / `--synth`。密钥不回显、异常脱敏（`_redact`） |
 | `scripts/tts_build.py` | 配音合成：阿里云百炼（默认）/ edge-tts / 火山引擎（`--provider`）；缓存/硬超时/退避重试/裁静音，manifest 写两级时长。三引擎 manifest 结构一致；字级时间戳是插值的（不在真时间戳的网格上：中文 1/32 秒、英文 0.08 秒）时打 ⚠、记 `even_timestamps`（lessons #140、#146）；截断的结果（读流没读到最终帧、0 个字级时间戳、音频短得不像这段文字）重试后非零退出，不进缓存，坏的缓存读时认出来重配（lessons #150） |
 | `scripts/timeline_build.py` | layout.json 全局轴 + narration-full.mp3（每段按 layout 槽位补齐到采样，gap 显式插入；总长差 > 1 帧即失败）。`project.json` 的 `hold`（`{"场景id": 秒}`）算进那一场的 `duration_sec`、layout 记 `hold_sec`，id 拼错 / 负数 / 不是数字即退出码 1（lessons #157） |
@@ -571,6 +584,7 @@ GSAP 用 `../assets/gsap.min.js`（本地内置）→ 主体动画压在 speech_
 | `references/style-director.md` | ★ **v2.0 模板编排文档**：八种角色、打分维度、混用与局部替换、多样性约束、`style-plan.json` 结构、命令行 |
 | `references/render-profiles.md` | ★ **v2.0 画质/帧率档位与性能文档**：档位表、质量-速度-体积权衡、快门与并行原理、基准数据、4K60 硬件要求 |
 | `references/ali-tts.md` | **阿里云百炼配音（默认引擎）**：密钥文件、音色、语速换算、实测行为（绝对时间戳 / 展开读法映射回原文 / `\|` 送之前去掉，不然会读成「竖线」）、排错 |
+| `references/ali-voices.json` | **按模型分组的官方音色目录**：仅 3.1 Plus / Flash；名称、voice ID、分类、语种、地域与试听链接，供向导和接口包共同读取 |
 | `references/lessons.md` | 踩坑台账（继承 14 条 + 本技能记录，持续追加） |
 | `assets/frame-template.html` | 场景模板（契约注释在文件头，B() 用法示例） |
 | `assets/cover-template.html` | **封面模板**（封面三要素注释在文件头，可改尺寸复用为 16:9 / 3:4 / 9:16 各一份） |
