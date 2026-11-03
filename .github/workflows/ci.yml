@@ -55,7 +55,8 @@ jobs:
         run: |
           set -e
           npm ci --prefix node --no-audit --no-fund
-          python -m pip install numpy pillow imageio-ffmpeg
+          # 固定已验证的 FFmpeg：新版改变 MP3 停顿 / 解码样本，既有回归夹具不再满足断言（lessons #159）。
+          python -m pip install numpy pillow imageio-ffmpeg==0.6.0
           python -c "import imageio_ffmpeg, os, shutil; d = os.path.join(os.environ['RUNNER_TEMP'], 'ffbin'); os.makedirs(d, exist_ok=True); shutil.copy(imageio_ffmpeg.get_ffmpeg_exe(), os.path.join(d, 'ffmpeg.exe' if os.name == 'nt' else 'ffmpeg')); open(os.environ['GITHUB_PATH'], 'a').write(d + '\\n')"
 
       # --- 仓库自洽性：版本号漂移、风格目录漂移、残留外链 ---
