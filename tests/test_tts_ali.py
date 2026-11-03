@@ -180,9 +180,9 @@ check("下限 0.5", tts_ali.rate_multiplier("-80%"), 0.5)
 check("edge 音色 ID 回落默认", tts_ali.resolve_voice_token("zh-CN-YunxiNeural"), tts_ali.DEFAULT_VOICE)
 check("火山音色 ID 回落默认", tts_ali.resolve_voice_token("zh_male_m191_uranus_bigtts"),
       tts_ali.DEFAULT_VOICE)
-check("显示名 → ID", tts_ali.resolve_voice_token("许玉远"), "xuyuyuan_v3.1")
-check("序号 → ID", tts_ali.resolve_voice_token("1"), tts_ali.VOICES[0][1])
-check("目录外的 3.1 音色原样返回", tts_ali.resolve_voice_token("longanhuan_v3.1"), "longanhuan_v3.1")
+check("Flash 显示名 → ID", tts_ali.resolve_voice_token("许玉远", model="flash"), "xuyuyuan_v3.1")
+check("Plus 序号 → ID", tts_ali.resolve_voice_token("1"), tts_ali.PLUS_VOICES[0][1])
+check("共享的 3.1 音色原样返回", tts_ali.resolve_voice_token("longanhuan_v3.1"), "longanhuan_v3.1")
 
 print("脱敏 _redact")
 fake = "sk-" + "a1B2" * 10

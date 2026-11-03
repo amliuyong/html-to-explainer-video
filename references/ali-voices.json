@@ -1,0 +1,2822 @@
+{
+  "source": "https://docs.bailian.console.aliyun.com/zh/model-studio/qwen-audio-tts-voice-list",
+  "verified_at": "2026-11-03",
+  "models": {
+    "qwen-audio-3.1-tts-plus": [
+      {
+        "name": "龙安灵心_v3.1",
+        "voice": "longanlingxin_v3.1",
+        "category": "旗舰音色",
+        "gender": "女",
+        "language": "中文/英文",
+        "note": "女",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/zh/audios/6a4b3c2d1e0f9279.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/zh/audios/6a4b3c2d1e0f9278.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/zh/audios/6a4b3c2d1e0f927f.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "许南川",
+        "voice": "xunanchuan_v3.1",
+        "category": "旗舰音色",
+        "gender": "男",
+        "language": "中文/英文",
+        "note": "男",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/zh/audios/6a4b3c2d1e0f927e.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/zh/audios/6a4b3c2d1e0f927d.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/zh/audios/6a4b3c2d1e0f927c.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "龙安欢_v3.1",
+        "voice": "longanhuan_v3.1",
+        "category": "旗舰音色",
+        "gender": "女",
+        "language": "中文/英文",
+        "note": "女",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/zh/audios/6a4b3c2d1e0f9273.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/zh/audios/6a4b3c2d1e0f9272.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/zh/audios/6a4b3c2d1e0f9271.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "龙安风悦_v3.1",
+        "voice": "longanfengyue_v3.1",
+        "category": "旗舰音色",
+        "gender": "女",
+        "language": "中文/英文",
+        "note": "女",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/zh/audios/6a4b3c2d1e0f9270.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/zh/audios/6a4b3c2d1e0f9277.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/zh/audios/6a4b3c2d1e0f9276.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      }
+    ],
+    "qwen-audio-3.1-tts-flash": [
+      {
+        "name": "龙安欢_v3.1",
+        "voice": "longanhuan_v3.1",
+        "category": "多语种与方言音色",
+        "gender": "女",
+        "language": "中文/英文、多语种与方言",
+        "note": "女",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9ced.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9cec.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9ce3.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9ce2.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "龙安灵心_v3.1",
+        "voice": "longanlingxin_v3.1",
+        "category": "多语种与方言音色",
+        "gender": "女",
+        "language": "中文/英文、多语种与方言",
+        "note": "女",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9ce1.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9ce0.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9ce7.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9ce6.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9ce5.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "龙安风悦_v3.1",
+        "voice": "longanfengyue_v3.1",
+        "category": "多语种与方言音色",
+        "gender": "女",
+        "language": "中文/英文、多语种与方言",
+        "note": "女",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9ce4.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9cfb.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9cfa.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "许南川",
+        "voice": "xunanchuan_v3.1",
+        "category": "多语种与方言音色",
+        "gender": "男",
+        "language": "中文/英文、多语种与方言",
+        "note": "男",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9cf9.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9cf8.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9cff.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9cfe.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "于小云",
+        "voice": "yuxiaoyun_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 元气、亲切、自然 · 广告营销、广播、客服助手、旁白",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9cfd.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "乔小娇",
+        "voice": "qiaoxiaojiao_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 俏丽、可爱 · 广告营销、客服助手、有声书",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9cfc.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "夏小晨",
+        "voice": "xiaxiaochen_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 元气、明亮 · 广告营销、有声书",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9cf2.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "安明远",
+        "voice": "anmingyuan_v3.1",
+        "category": "精品中文音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 清亮、自然 · 广告营销、有声书、旁白",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9cf1.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "温怀清",
+        "voice": "wenhuaiqing_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 清亮、柔和 · 儿童故事、客服助手、广告营销、新闻播报",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9cf0.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "安小岚",
+        "voice": "anxiaolan_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 清甜、纯净 · 有声书、客服助手、旁白、新闻播报、广告营销",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9cf7.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "谢舒柔",
+        "voice": "xieshurou_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 柔和、自然、知性 · 有声书、客服助手、旁白",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9cf5.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "白清岚",
+        "voice": "baiqinglan_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 明亮、清纯 · 语音助手、客服助手",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c0b.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "许玉远",
+        "voice": "xuyuyuan_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 知性、成熟、质感 · 广告营销、新闻播报、旁白、客服助手、有声书",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c0a.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "安若柔",
+        "voice": "anruorou_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 气声、知性 · 旁白、语音助手",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c09.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "闻怀之",
+        "voice": "wenhuaizhi_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 稳重、成熟 · 有声书、新闻播报、广告营销、客服助手、旁白",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c08.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "萧行之",
+        "voice": "xiaoxingzhi_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 端庄、贵气 · 新闻播报、有声书、旁白、客服助手",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c0f.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "顾云舒",
+        "voice": "guyunshu_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 成熟、稳重 · 音乐电台、客服助手、有声书、旁白",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c0e.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "霍拙石",
+        "voice": "huozhuoshi_v3.1",
+        "category": "精品中文音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 清亮 · 有声书、广告营销、旁白",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c0d.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "叶清禾",
+        "voice": "yeqinghe_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 亲切、温柔 · 有声书、广告营销、旁白、客服助手",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c0c.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "云欢欢",
+        "voice": "yunhuanhuan_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 高亢、热情 · 有声书、旁白、客服助手",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c03.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "徐小俏",
+        "voice": "xuxiaoqiao_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 自然、俏皮 · 有声书、旁白、客服助手",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c02.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "白安然",
+        "voice": "baianran_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 低沉、浑厚、气声 · 配音讲解、有声书、旁白",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c01.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "许言初",
+        "voice": "xuyanchu_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 沉稳、磁性 · 新闻播报、有声书",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c00.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "叶知晴",
+        "voice": "yezhiqing_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 轻快、自然 · 儿童故事、客服助手、语音助手",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c05.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "安迪",
+        "voice": "andi_v3.1",
+        "category": "精品中文音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · ABC口音 · 语音助手",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c1b.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "安语晴",
+        "voice": "anyuqing_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 甜妹 · 语音助手、旁白、新闻播报",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c1a.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "林小灵",
+        "voice": "linxiaoling_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 甜妹 · 语音助手",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93c1.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙菲菲_v3.1",
+        "voice": "longfeifei_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 甜妹 · 社交陪伴",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93c0.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙婧_v3.1",
+        "voice": "longjing_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 质感、沉稳 · 新闻播报",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93c7.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙嫱_v3.1",
+        "voice": "longqiang_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 浪漫、风情 · 社交陪伴",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93c6.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙颜_v3.1",
+        "voice": "longyan_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 温暖、自然、亲切 · 社交陪伴",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93c5.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙小白_v3.1",
+        "voice": "longxiaobai_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 磁性、质感 · 新闻播报",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93c4.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙悦_v3.1",
+        "voice": "longyue_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 温暖、磁性 · 有声书",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93db.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙橙_v3.1",
+        "voice": "longcheng_v3.1",
+        "category": "精品中文音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 智慧、磁性 · 社交陪伴",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93da.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙老铁_v3.1",
+        "voice": "longlaotie_v3.1",
+        "category": "精品中文音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 东北、直率 · 方言",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93d9.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙邵_v3.1",
+        "voice": "longshao_v3.1",
+        "category": "精品中文音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 积极、元气 · 社交陪伴",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93d8.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙书_v3.1",
+        "voice": "longshu_v3.1",
+        "category": "精品中文音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 沉稳、磁性 · 新闻播报",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93df.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙泽_v3.1",
+        "voice": "longze_v3.1",
+        "category": "精品中文音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 温暖、元气、自然 · 社交陪伴",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93de.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙浩_v3.1",
+        "voice": "longhao_v3.1",
+        "category": "精品中文音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 多情、忧郁 · 社交陪伴",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93dd.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙津_v3.1",
+        "voice": "longjin_v3.1",
+        "category": "精品中文音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 优雅、温润 · 诗词朗诵",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93dc.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙楠_v3.1",
+        "voice": "longnan_v3.1",
+        "category": "精品中文音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 睿智 · 有声书",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93d3.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙硕_v3.1",
+        "voice": "longshuo_v3.1",
+        "category": "精品中文音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 博才、干练 · 新闻播报",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93d2.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙天_v3.1",
+        "voice": "longtian_v3.1",
+        "category": "精品中文音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 磁性、理智 · 社交陪伴",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93d1.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙小诚_v3.1",
+        "voice": "longxiaocheng_v3.1",
+        "category": "精品中文音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 磁性、低音 · 社交陪伴",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93d0.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙可_v3.1",
+        "voice": "longke_v3.1",
+        "category": "精品中文音色",
+        "gender": "儿童",
+        "language": "中文普通话",
+        "note": "儿童 · 懵懂 · 童声",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93d7.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "Bella_v3.1",
+        "voice": "loongbella_v3.1",
+        "category": "精品中文音色",
+        "gender": "女",
+        "language": "中文普通话/英文",
+        "note": "女 · 干练、磁性、知性 · 英文、新闻播报",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93d6.wav",
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93d5.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "Emily",
+        "voice": "Emily_v3.1",
+        "category": "精品英文音色",
+        "gender": "女",
+        "language": "英文",
+        "note": "女 · 英式女声",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c19.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Luna",
+        "voice": "Luna_v3.1",
+        "category": "精品英文音色",
+        "gender": "女",
+        "language": "英文",
+        "note": "女 · 英式女声",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c18.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Eric",
+        "voice": "Eric_v3.1",
+        "category": "精品英文音色",
+        "gender": "男",
+        "language": "英文",
+        "note": "男 · 英式男声",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c1f.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Luca",
+        "voice": "Luca_v3.1",
+        "category": "精品英文音色",
+        "gender": "男",
+        "language": "英文",
+        "note": "男 · 英式男声",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c1e.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Abby",
+        "voice": "Abby_v3.1",
+        "category": "精品英文音色",
+        "gender": "女",
+        "language": "英文",
+        "note": "女 · 美式女声",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c1d.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Annie",
+        "voice": "Annie_v3.1",
+        "category": "精品英文音色",
+        "gender": "女",
+        "language": "英文",
+        "note": "女 · 美式女声",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c1c.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Ava",
+        "voice": "Ava_v3.1",
+        "category": "精品英文音色",
+        "gender": "女",
+        "language": "英文",
+        "note": "女 · 美式女声",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c13.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Beth",
+        "voice": "Beth_v3.1",
+        "category": "精品英文音色",
+        "gender": "女",
+        "language": "英文",
+        "note": "女 · 美式女声",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c12.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Betty",
+        "voice": "Betty_v3.1",
+        "category": "精品英文音色",
+        "gender": "女",
+        "language": "英文",
+        "note": "女 · 美式女声",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c11.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Cally",
+        "voice": "Cally_v3.1",
+        "category": "精品英文音色",
+        "gender": "女",
+        "language": "英文",
+        "note": "女 · 美式女声",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c10.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Cindy",
+        "voice": "Cindy_v3.1",
+        "category": "精品英文音色",
+        "gender": "女",
+        "language": "英文",
+        "note": "女 · 美式女声",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c17.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Donna",
+        "voice": "Donna_v3.1",
+        "category": "精品英文音色",
+        "gender": "女",
+        "language": "英文",
+        "note": "女 · 美式女声",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c16.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Andy",
+        "voice": "Andy_v3.1",
+        "category": "精品英文音色",
+        "gender": "男",
+        "language": "英文",
+        "note": "男 · 美式男声",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c15.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Brian",
+        "voice": "Brian_v3.1",
+        "category": "精品英文音色",
+        "gender": "男",
+        "language": "英文",
+        "note": "男 · 美式男声",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c14.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "David",
+        "voice": "David_v3.1",
+        "category": "精品英文音色",
+        "gender": "男",
+        "language": "英文",
+        "note": "男 · 美式男声",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c2b.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "龙安元妃_v3.1",
+        "voice": "longanyuanfei_v3.1",
+        "category": "其他系统音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 高傲妃子音 · 社交陪伴",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c2a.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙杰力豆_v3.1",
+        "voice": "longjielidou_v3.1",
+        "category": "其他系统音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 天真男童音 · 儿童陪伴",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c29.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙安灵希_v3.1",
+        "voice": "longanlingxi_v3.1",
+        "category": "其他系统音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 可爱甜美音 · 社交陪伴（精品中文）",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c2f.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙火火_v3.1",
+        "voice": "longhuohuo_v3.1",
+        "category": "其他系统音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 顽皮少年音 · 角色音",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c28.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙应桃_v3.1",
+        "voice": "longyingtao_v3.1",
+        "category": "其他系统音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 温柔淡定女 · 客服",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c2e.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙安雅_v3.1",
+        "voice": "longanya_v3.1",
+        "category": "其他系统音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 高雅气质女 · 社交陪伴",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c2d.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙婉_v3.1",
+        "voice": "longwan_v3.1",
+        "category": "其他系统音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 细腻柔声女 · 社交陪伴",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c2c.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙星_v3.1",
+        "voice": "longxing_v3.1",
+        "category": "其他系统音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 温婉邻家女 · 社交陪伴",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c23.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙华_v3.1",
+        "voice": "longhua_v3.1",
+        "category": "其他系统音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 元气甜美女 · 社交陪伴",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c22.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙寒_v3.1",
+        "voice": "longhan_v3.1",
+        "category": "其他系统音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 温暖痴情男 · 社交陪伴",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c21.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙安智_v3.1",
+        "voice": "longanzhi_v3.1",
+        "category": "其他系统音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 睿智轻熟男 · 社交陪伴",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c20.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙哲_v3.1",
+        "voice": "longzhe_v3.1",
+        "category": "其他系统音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 呆板大暖男 · 社交陪伴",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c27.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙安洋_v3.1",
+        "voice": "longanyang_v3.1",
+        "category": "其他系统音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 阳光大男孩 · 社交陪伴（标杆音色）",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c26.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "李白_v3.1",
+        "voice": "libai_v3.1",
+        "category": "其他系统音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 古代诗仙男 · 诗词朗诵",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c25.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙铃_v3.1",
+        "voice": "longling_v3.1",
+        "category": "其他系统音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 稚气呆板女 · 童声",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c24.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙牛牛_v3.1",
+        "voice": "longniuniu_v3.1",
+        "category": "其他系统音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 阳光男童声 · 消费电子-儿童有声书",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c3b.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙闪闪_v3.1",
+        "voice": "longshanshan_v3.1",
+        "category": "其他系统音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 戏剧化童声 · 消费电子-儿童有声书",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c3a.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙泡泡_v3.1",
+        "voice": "longpaopao_v3.1",
+        "category": "其他系统音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 飞天泡泡音 · 消费电子-儿童陪伴",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c39.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "loongstella_v3.1",
+        "voice": "loongstella_v3.1",
+        "category": "其他系统音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 飒爽利落女 · 新闻播报",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c38.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙媛_v3.1",
+        "voice": "longyuan_v3.1",
+        "category": "其他系统音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 温暖治愈女 · 有声书",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c3f.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙妙_v3.1",
+        "voice": "longmiao_v3.1",
+        "category": "其他系统音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 抑扬顿挫女 · 有声书",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c3e.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙三叔_v3.1",
+        "voice": "longsanshu_v3.1",
+        "category": "其他系统音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 沉稳质感男 · 有声书",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c3d.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙安莉_v3.1",
+        "voice": "longanli_v3.1",
+        "category": "其他系统音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 利落从容女 · 语音助手",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c3c.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙安温_v3.1",
+        "voice": "longanwen_v3.1",
+        "category": "其他系统音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 优雅知性女 · 语音助手",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c33.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙安朗_v3.1",
+        "voice": "longanlang_v3.1",
+        "category": "其他系统音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 清爽利落男 · 语音助手",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c32.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙小夏_v3.1",
+        "voice": "longxiaoxia_v3.1",
+        "category": "其他系统音色",
+        "gender": "女",
+        "language": "中文普通话",
+        "note": "女 · 沉稳权威女 · 语音助手",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c31.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "龙安冲_v3.1",
+        "voice": "longanchong_v3.1",
+        "category": "其他系统音色",
+        "gender": "男",
+        "language": "中文普通话",
+        "note": "男 · 激情推销男 · 直播带货",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9c30.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing"
+        ]
+      },
+      {
+        "name": "Zora",
+        "voice": "qwen-audio-3.1-tts-flash-zora_bg",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "保加利亚语",
+        "note": "男 · 保加利亚语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93fd.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Linde",
+        "voice": "qwen-audio-3.1-tts-flash-linde_nl",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "荷兰语",
+        "note": "男 · 荷兰语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93fe.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Hajnal",
+        "voice": "qwen-audio-3.1-tts-flash-hajnal_hu",
+        "category": "小语种音色",
+        "gender": "女",
+        "language": "匈牙利语",
+        "note": "女 · 匈牙利语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93ff.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Senin",
+        "voice": "qwen-audio-3.1-tts-flash-senin_ro",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "罗马尼亚语",
+        "note": "男 · 罗马尼亚语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93fc.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Birk",
+        "voice": "qwen-audio-3.1-tts-flash-birk_da",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "丹麦语",
+        "note": "男 · 丹麦语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93f3.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Lipa",
+        "voice": "qwen-audio-3.1-tts-flash-lipa_hr",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "克罗地亚语",
+        "note": "男 · 克罗地亚语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93f2.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Avgi",
+        "voice": "qwen-audio-3.1-tts-flash-avgi_el",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "希腊语",
+        "note": "男 · 希腊语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93f1.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Jitrenka",
+        "voice": "qwen-audio-3.1-tts-flash-jitrenka_cs",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "捷克语",
+        "note": "男 · 捷克语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93f0.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Solglimt",
+        "voice": "qwen-audio-3.1-tts-flash-solglimt_nn",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "挪威语",
+        "note": "男 · 挪威语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93f7.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Glimma",
+        "voice": "qwen-audio-3.1-tts-flash-glimma_sv",
+        "category": "小语种音色",
+        "gender": "女",
+        "language": "瑞典语",
+        "note": "女 · 瑞典语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93f6.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Svar",
+        "voice": "qwen-audio-3.1-tts-flash-svar_hi",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "印地语",
+        "note": "男 · 印地语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93f5.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Iskra",
+        "voice": "qwen-audio-3.1-tts-flash-iskra_sk",
+        "category": "小语种音色",
+        "gender": "女",
+        "language": "斯洛伐克语",
+        "note": "女 · 斯洛伐克语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f93f4.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Aava",
+        "voice": "qwen-audio-3.1-tts-flash-aava_fi",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "芬兰语",
+        "note": "男 · 芬兰语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f930b.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Sahar",
+        "voice": "qwen-audio-3.1-tts-flash-sahar_ur",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "乌尔都语",
+        "note": "男 · 乌尔都语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f930a.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Jasna",
+        "voice": "qwen-audio-3.1-tts-flash-jasna_sr",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "塞尔维亚语",
+        "note": "男 · 塞尔维亚语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9309.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Brisa",
+        "voice": "qwen-audio-3.1-tts-flash-brisa_es_mx",
+        "category": "小语种音色",
+        "gender": "女",
+        "language": "墨西哥西班牙语",
+        "note": "女 · 墨西哥西班牙语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9308.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Ausra",
+        "voice": "qwen-audio-3.1-tts-flash-ausra_lt",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "立陶宛语",
+        "note": "男 · 立陶宛语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f930f.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Rasa",
+        "voice": "qwen-audio-3.1-tts-flash-rasa_lv",
+        "category": "小语种音色",
+        "gender": "女",
+        "language": "拉脱维亚语",
+        "note": "女 · 拉脱维亚语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f930e.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Deniz",
+        "voice": "qwen-audio-3.1-tts-flash-deniz_tr",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "土耳其语",
+        "note": "男 · 土耳其语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f930d.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Ava",
+        "voice": "qwen-audio-3.1-tts-flash-ava_fa",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "波斯语",
+        "note": "男 · 波斯语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f930c.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Or",
+        "voice": "qwen-audio-3.1-tts-flash-or_he",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "希伯来语",
+        "note": "男 · 希伯来语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9303.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Ayalguu",
+        "voice": "qwen-audio-3.1-tts-flash-ayalguu_mn",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "蒙古语",
+        "note": "男 · 蒙古语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9302.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Zarja",
+        "voice": "qwen-audio-3.1-tts-flash-zarja_sl",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "斯洛文尼亚语",
+        "note": "男 · 斯洛文尼亚语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9301.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Ishiq",
+        "voice": "qwen-audio-3.1-tts-flash-ishiq_az",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "阿塞拜疆语",
+        "note": "男 · 阿塞拜疆语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9300.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Zorza",
+        "voice": "qwen-audio-3.1-tts-flash-zorza_pl",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "波兰语",
+        "note": "男 · 波兰语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9307.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Alba",
+        "voice": "qwen-audio-3.1-tts-flash-alba_ca",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "加泰罗尼亚语",
+        "note": "男 · 加泰罗尼亚语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9306.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Romduol",
+        "voice": "qwen-audio-3.1-tts-flash-romduol_km",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "高棉语",
+        "note": "男 · 高棉语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9305.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Aurora",
+        "voice": "qwen-audio-3.1-tts-flash-aurora_pt_br",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "巴西葡萄牙语",
+        "note": "男 · 巴西葡萄牙语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9304.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Dao",
+        "voice": "qwen-audio-3.1-tts-flash-dao_lo",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "老挝语",
+        "note": "男 · 老挝语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f931b.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Tsiskari",
+        "voice": "qwen-audio-3.1-tts-flash-tsiskari_ka",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "格鲁吉亚语",
+        "note": "男 · 格鲁吉亚语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f931a.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Lente",
+        "voice": "qwen-audio-3.1-tts-flash-lente_af",
+        "category": "小语种音色",
+        "gender": "女",
+        "language": "南非荷兰语",
+        "note": "女 · 南非荷兰语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9319.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Kiran",
+        "voice": "qwen-audio-3.1-tts-flash-kiran_ne",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "尼泊尔语",
+        "note": "男 · 尼泊尔语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9318.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Zorka",
+        "voice": "qwen-audio-3.1-tts-flash-zorka_be",
+        "category": "小语种音色",
+        "gender": "女",
+        "language": "白俄罗斯语",
+        "note": "女 · 白俄罗斯语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f931f.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Nilaav",
+        "voice": "qwen-audio-3.1-tts-flash-nilaav_ml",
+        "category": "小语种音色",
+        "gender": "女",
+        "language": "马拉雅拉姆语",
+        "note": "女 · 马拉雅拉姆语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f931e.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Staer",
+        "voice": "qwen-audio-3.1-tts-flash-staer_lb",
+        "category": "小语种音色",
+        "gender": "女",
+        "language": "卢森堡语",
+        "note": "女 · 卢森堡语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f931d.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Drita",
+        "voice": "qwen-audio-3.1-tts-flash-drita_sq",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "阿尔巴尼亚语",
+        "note": "男 · 阿尔巴尼亚语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f931c.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Nila",
+        "voice": "qwen-audio-3.1-tts-flash-nila_ta",
+        "category": "小语种音色",
+        "gender": "女",
+        "language": "泰米尔语",
+        "note": "女 · 泰米尔语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9313.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Aruna",
+        "voice": "qwen-audio-3.1-tts-flash-aruna_si",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "僧伽罗语",
+        "note": "男 · 僧伽罗语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9312.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Vennela",
+        "voice": "qwen-audio-3.1-tts-flash-vennela_te",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "泰卢固语",
+        "note": "男 · 泰卢固语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9311.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Sade",
+        "voice": "qwen-audio-3.1-tts-flash-sade_et",
+        "category": "小语种音色",
+        "gender": "女",
+        "language": "爱沙尼亚语",
+        "note": "女 · 爱沙尼亚语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9310.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Bituon",
+        "voice": "qwen-audio-3.1-tts-flash-bituon_ceb",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "宿务语",
+        "note": "男 · 宿务语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9317.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Vedrina",
+        "voice": "qwen-audio-3.1-tts-flash-vedrina_bs",
+        "category": "小语种音色",
+        "gender": "女",
+        "language": "波斯尼亚语",
+        "note": "女 · 波斯尼亚语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9316.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "LaYaung",
+        "voice": "qwen-audio-3.1-tts-flash-layaung_my",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "缅甸语",
+        "note": "男 · 缅甸语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9315.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Luys",
+        "voice": "qwen-audio-3.1-tts-flash-luys_hy",
+        "category": "小语种音色",
+        "gender": "女",
+        "language": "亚美尼亚语",
+        "note": "女 · 亚美尼亚语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9314.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Lumen",
+        "voice": "qwen-audio-3.1-tts-flash-lumen_la",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "拉丁语",
+        "note": "男 · 拉丁语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f932b.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Birta",
+        "voice": "qwen-audio-3.1-tts-flash-birta_is",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "冰岛语",
+        "note": "男 · 冰岛语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f932a.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Zerniq",
+        "voice": "qwen-audio-3.1-tts-flash-zerniq_mt",
+        "category": "小语种音色",
+        "gender": "女",
+        "language": "马耳他语",
+        "note": "女 · 马耳他语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9329.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Nuru",
+        "voice": "qwen-audio-3.1-tts-flash-nuru_sw",
+        "category": "小语种音色",
+        "gender": "女",
+        "language": "斯瓦希里语",
+        "note": "女 · 斯瓦希里语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f9328.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Arai",
+        "voice": "qwen-audio-3.1-tts-flash-arai_kk",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "哈萨克语",
+        "note": "男 · 哈萨克语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f932f.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Zetwal",
+        "voice": "qwen-audio-3.1-tts-flash-zetwal_crs",
+        "category": "小语种音色",
+        "gender": "女",
+        "language": "塞舌尔克里奥尔语",
+        "note": "女 · 塞舌尔克里奥尔语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f932e.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      },
+      {
+        "name": "Zoria",
+        "voice": "qwen-audio-3.1-tts-flash-zoria_uk",
+        "category": "小语种音色",
+        "gender": "男",
+        "language": "乌克兰语",
+        "note": "男 · 乌克兰语",
+        "previews": [
+          "https://g-adoc.alcasset.com/media/maas_docs/sfm-cn/common/audios/6a4b3c2d1e0f932d.wav"
+        ],
+        "features": [
+          "SSML",
+          "instruction",
+          "timestamp"
+        ],
+        "regions": [
+          "beijing",
+          "singapore"
+        ]
+      }
+    ]
+  }
+}

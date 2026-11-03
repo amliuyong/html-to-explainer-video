@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-tts_ali.py —— 阿里云百炼语音合成（qwen-audio-3.1-tts-flash）接口包。
+tts_ali.py —— 阿里云百炼语音合成（qwen-audio-3.1-tts-plus）接口包。
 
 【为什么单独成一个包】与 tts_volcano.py 同一条纪律：密钥只在这一个文件里被读取，
 调用方（含 AI agent）只传「文本 + 音色 + 语速」，永远拿不到也不需要密钥值。
@@ -46,7 +46,8 @@ tts_ali.py —— 阿里云百炼语音合成（qwen-audio-3.1-tts-flash）接�
 
 用法：
   python tts_ali.py --check                         # 连通性自检（用一句话试合成）
-  python tts_ali.py --voices                        # 列出内置常用音色
+  python tts_ali.py --model plus --voices           # 列出 Plus 音色与试听
+  python tts_ali.py --model flash --voices          # 列出 Flash 音色与试听
   python tts_ali.py --synth "测试文本" --out a.mp3   # 手动合成一段
   python tts_ali.py --key-file <路径> ...            # 指定密钥文件（默认 ~/ali_tts/api_key.csv）
 被 tts_build.py 作为库调用（provider=ali 时）。
@@ -71,7 +72,8 @@ import urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tts_volcano  # noqa: E402  —— 语速换算与 MP3 头判定只保留一份
 
-MODEL = "qwen-audio-3.1-tts-flash"
+MODEL = "qwen-audio-3.1-tts-plus"
+MODELS = (MODEL, "qwen-audio-3.1-tts-flash")
 API_PATH = "/services/audio/tts/SpeechSynthesizer"
 # 进 tts_build 的缓存签名：boundaries 的产出口径（to_original）一改就换版本号，
 # 否则旧缓存里的未映射边界会被原样复用，字幕照样错位（2026-10-19 踩过）
@@ -82,37 +84,36 @@ DEFAULT_RETRIES = 3
 RETRY_SLEEP = 1.0
 RATE_MIN, RATE_MAX = 0.5, 2.0
 
-# 3.1 只认 *_v3.1 音色（区分大小写）；和 3.0 的音色混用会报 InvalidParameter [411]
-DEFAULT_VOICE = "xuyuyuan_v3.1"        # 许玉远：女声，知性成熟
-DEFAULT_VOICE_EN = "Andy_v3.1"
+# Plus / Flash 的音色列表不同；后缀相同不代表可以跨模型混用。
+DEFAULT_VOICE = "longanfengyue_v3.1"  # 龙安风悦：女声，Plus 旗舰音色
+DEFAULT_VOICE_EN = DEFAULT_VOICE      # Plus 下中英文均已实测返回时间戳
+DEFAULT_VOICE_FLASH = "xuyuyuan_v3.1"
+DEFAULT_VOICE_FLASH_EN = "Andy_v3.1"
 
-# 内置常用音色（名称, voice, 说明）。完整 68 个见 ~/ali_tts/docs/qwen-audio-tts-http-api.md §7。
-VOICES: list[tuple[str, str, str]] = [
-    # —— 中文男声 ——
-    ("安明远",      "anmingyuan_v3.1",  "男声 · 清亮自然，旁白/有声书"),
-    ("霍拙石",      "huozhuoshi_v3.1",  "男声 · 清亮，有声书/旁白"),
-    ("龙三叔",      "longsanshu_v3.1",  "男声 · 沉稳质感，有声书"),
-    ("龙安智",      "longanzhi_v3.1",   "男声 · 睿智轻熟"),
-    ("龙安朗",      "longanlang_v3.1",  "男声 · 清爽利落"),
-    ("许南川",      "xunanchuan_v3.1",  "男声 · 支持方言与多语种"),
-    # —— 中文女声 ——
-    ("许玉远",      "xuyuyuan_v3.1",    "女声 · 知性成熟，新闻播报/旁白（默认）"),
-    ("闻怀之",      "wenhuaizhi_v3.1",  "女声 · 稳重成熟，有声书/新闻播报"),
-    ("谢舒柔",      "xieshurou_v3.1",   "女声 · 柔和知性，有声书/旁白"),
-    ("安小岚",      "anxiaolan_v3.1",   "女声 · 清甜纯净，旁白/新闻播报"),
-    ("于小云",      "yuxiaoyun_v3.1",   "女声 · 元气亲切，广告/旁白"),
-    ("白安然",      "baianran_v3.1",    "女声 · 低沉浑厚带气声，配音讲解"),
-    ("许言初",      "xuyanchu_v3.1",    "女声 · 沉稳磁性，新闻播报"),
-    # —— 英文（只支持英文文本）——
-    ("Andy",        "Andy_v3.1",        "美式英语 · 男声"),
-    ("David",       "David_v3.1",       "美式英语 · 男声"),
-    ("Ava",         "Ava_v3.1",         "美式英语 · 女声"),
-    ("Eric",        "Eric_v3.1",        "英式英语 · 男声"),
-    ("Emily",       "Emily_v3.1",       "英式英语 · 女声"),
-]
+CATALOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "..", "references", "ali-voices.json")
+with open(CATALOG_PATH, encoding="utf-8") as _catalog_file:
+    VOICE_CATALOG = json.load(_catalog_file)["models"]
 
+
+def _catalog_tuples(model: str, default: str) -> list[tuple[str, str, str]]:
+    entries = VOICE_CATALOG[model]
+    ordered = [v for v in entries if v["voice"] == default]
+    ordered += [v for v in entries if v["voice"] != default]
+    return [(v["name"], v["voice"],
+             f'{v["category"]} · {v["language"]} · {v["note"]}'
+             + (" · 默认" if v["voice"] == default else "")) for v in ordered]
+
+
+PLUS_VOICES = _catalog_tuples(MODELS[0], DEFAULT_VOICE)
+FLASH_VOICES = _catalog_tuples(MODELS[1], DEFAULT_VOICE_FLASH)
+
+# 保留 Flash 完整目录供旧调用方查询；选择音色时使用 voices_for_model()。
+VOICES = FLASH_VOICES
 VOICE_BY_NAME = {name: vid for name, vid, _ in VOICES}
 VOICE_IDS = {vid for _, vid, _ in VOICES}
+AMBIGUOUS_NAMES = {name for name, _, _ in VOICES
+                   if sum(n == name for n, _, _ in VOICES) > 1}
 
 # edge（…Neural）与火山（…_bigtts）的音色 ID 形态。旧项目的 project.json 里常留着这种 ID，
 # 原样送给阿里只会换来一句看不出原因的 `Engine error [411]`。
@@ -123,21 +124,55 @@ def is_foreign_voice(token: str) -> bool:
     return bool(_FOREIGN_VOICE.search((token or "").strip()))
 
 
-def resolve_voice_token(token: str, default: str = "") -> str:
+def resolve_model_token(token: str = "") -> str:
+    token = (token or "").strip()
+    aliases = {"plus": MODELS[0], "flash": MODELS[1], "1": MODELS[0], "2": MODELS[1]}
+    model = aliases.get(token.lower(), token) if token else MODEL
+    if model not in MODELS:
+        raise AliTTSConfigError(f"不支持的阿里 TTS 模型：{model}；请选择 plus 或 flash。")
+    return model
+
+
+def voices_for_model(model: str = "") -> list[tuple[str, str, str]]:
+    return PLUS_VOICES if resolve_model_token(model) == MODELS[0] else FLASH_VOICES
+
+
+def voice_info(voice: str, model: str = "") -> dict:
+    return next((v for v in VOICE_CATALOG[resolve_model_token(model)]
+                 if v["voice"] == voice), {})
+
+
+def default_voice(model: str = "", lang: str = "zh") -> str:
+    if resolve_model_token(model) == MODELS[0]:
+        return DEFAULT_VOICE
+    return DEFAULT_VOICE_FLASH_EN if lang == "en" else DEFAULT_VOICE_FLASH
+
+
+def resolve_voice_token(token: str, default: str = "", model: str = "") -> str:
     """把「名称 / 序号 / 原始 ID」统一成音色 ID。空 token 或别家引擎的 ID → default。"""
+    model = resolve_model_token(model)
+    catalog = voices_for_model(model)
     token = (token or "").strip()
     if not token or is_foreign_voice(token):
-        return default or DEFAULT_VOICE
-    if token.isdigit() and 1 <= int(token) <= len(VOICES):
-        return VOICES[int(token) - 1][1]
-    if token in VOICE_BY_NAME:
-        return VOICE_BY_NAME[token]
-    if token in VOICE_IDS:
-        return token
-    for name, vid, _ in VOICES:              # 允许带括注的名字，如「安明远（默认）」
-        if name.startswith(token) or token.startswith(name):
-            return vid
-    return token                             # 目录外的 3.1 音色 / 复刻音色原样返回
+        token = default or default_voice(model)
+    if token.isdigit():
+        if 1 <= int(token) <= len(catalog):
+            return catalog[int(token) - 1][1]
+        raise AliTTSConfigError(f"音色序号超出范围：请选择 1–{len(catalog)}。")
+    if token in AMBIGUOUS_NAMES:
+        raise AliTTSConfigError(f"音色名称 {token} 对应多个语种；请使用序号或完整 voice ID。")
+    resolved = VOICE_BY_NAME.get(token, token)
+    if token not in VOICE_BY_NAME and token not in VOICE_IDS:
+        matches = {vid for name, vid, _ in VOICES
+                   if name.startswith(token) or token.startswith(name)}
+        if len(matches) > 1:
+            raise AliTTSConfigError(f"音色名称 {token} 不唯一；请使用序号或完整 voice ID。")
+        if matches:
+            resolved = matches.pop()
+    if resolved in VOICE_IDS and resolved not in {v[1] for v in catalog}:
+        raise AliTTSConfigError(
+            f"音色 {resolved} 不支持 {model}；请从该模型的音色列表选择。")
+    return resolved                          # 目录外的音色 / 复刻音色交服务端验证
 
 
 def rate_multiplier(value) -> float:
@@ -147,7 +182,7 @@ def rate_multiplier(value) -> float:
 
 
 class AliTTSConfigError(RuntimeError):
-    """缺密钥文件或字段不全 —— 由 tts_setup.py 负责引导用户补齐。"""
+    """模型、音色或密钥配置不正确 —— 由 tts_setup.py 引导修正。"""
 
     retryable = False                        # tts_build 的外层重试看这个属性
 
@@ -256,7 +291,7 @@ _HINTS = {
     "DataInspectionFailed": "内容安全拦截：改写这句解说词再试",
     "Arrearage": "账号欠费：到百炼控制台充值",
     "AllocationQuota.FreeTierOnly": "免费额度已用完且开启了「用完即停」",
-    "ModelNotFound": f"模型名不对或没有 {MODEL} 的调用权限",
+    "ModelNotFound": "核对所选 Plus / Flash 模型的名称及调用权限",
 }
 
 
@@ -267,7 +302,7 @@ def _api_error(msg: dict, http_status: int | None = None) -> AliTTSError:
                  or (http_status or 0) >= 500)
     hint = _HINTS.get(code, "")
     if code == "InvalidParameter" and "[411]" in message:
-        hint = "音色不存在或与模型不匹配：3.1 只认 *_v3.1 音色（区分大小写）"
+        hint = "音色不存在或与模型不匹配：*_v3.1 音色须属于所选 Plus / Flash 模型的支持列表"
     head = f"HTTP {http_status} · " if http_status else ""
     tail = f"\n  → {hint}" if hint else ""
     return AliTTSError(
@@ -411,7 +446,8 @@ def _http_error(e: urllib.error.HTTPError) -> AliTTSError:
 # ---------------------------------------------------------------- 请求
 def _one_request(text: str, voice: str, cred: dict[str, str], rate: float,
                  fmt: str, sample_rate: int, timeout: float,
-                 language: str = "", instruction: str = "") -> tuple[bytes, list[dict], dict]:
+                 language: str = "", instruction: str = "",
+                 model: str = "") -> tuple[bytes, list[dict], dict]:
     inp: dict = {"text": text, "voice": voice, "format": fmt, "sample_rate": sample_rate,
                  # ★ 不传这个开关，sentence.words 恒为空 —— 字幕只能退回按字数插值
                  "word_timestamp_enabled": True}
@@ -423,7 +459,8 @@ def _one_request(text: str, voice: str, cred: dict[str, str], rate: float,
         inp["instruction"] = instruction
     req = urllib.request.Request(
         cred["base_url"] + API_PATH,
-        data=json.dumps({"model": MODEL, "input": inp}, ensure_ascii=False).encode("utf-8"),
+        data=json.dumps({"model": resolve_model_token(model), "input": inp},
+                        ensure_ascii=False).encode("utf-8"),
         method="POST",
         headers={"Authorization": "Bearer " + cred["api_key"],
                  "Content-Type": "application/json",
@@ -446,10 +483,10 @@ def _one_request(text: str, voice: str, cred: dict[str, str], rate: float,
         raise AliTTSError(f"读流中断：{type(e).__name__}") from None
 
 
-def synthesize(text: str, voice: str = DEFAULT_VOICE, rate=0,
+def synthesize(text: str, voice: str = "", rate=0,
                fmt: str = "mp3", sample_rate: int = 24000,
                timeout: float = DEFAULT_TIMEOUT, retries: int = DEFAULT_RETRIES,
-               language: str = "", instruction: str = "") -> dict:
+               language: str = "", instruction: str = "", model: str = "") -> dict:
     """合成一段文本 → {audio, boundaries, usage, requests}。失败抛 AliTTSError。
 
     rate 是「快百分之几」（'+8%' / 8 / 0.08 均可），内部换算成倍速。
@@ -457,7 +494,8 @@ def synthesize(text: str, voice: str = DEFAULT_VOICE, rate=0,
     text = (text or "").strip()
     if not text:
         raise AliTTSError("文本为空", retryable=False)
-    voice = resolve_voice_token(voice, DEFAULT_VOICE)
+    model = resolve_model_token(model)
+    voice = resolve_voice_token(voice, default_voice(model, language), model)
     cred = load_credentials()
     mult = rate_multiplier(rate)
 
@@ -466,7 +504,7 @@ def synthesize(text: str, voice: str = DEFAULT_VOICE, rate=0,
     for attempt in range(tries):
         try:
             audio, bounds, usage = _one_request(
-                text, voice, cred, mult, fmt, sample_rate, timeout, language, instruction)
+                text, voice, cred, mult, fmt, sample_rate, timeout, language, instruction, model)
             if not audio:
                 raise AliTTSError("没有收到任何音频块（检查音色 ID 与文本是否为空）")
             if fmt == "mp3" and not tts_volcano._looks_like_mp3(audio):
@@ -477,7 +515,7 @@ def synthesize(text: str, voice: str = DEFAULT_VOICE, rate=0,
             if not bounds:
                 result["warning"] = (
                     f"音色 {voice} 未返回字级时间戳（sentence.words 为空），"
-                    f"tts_build 不收没有时间戳的结果 —— 建议换回 {DEFAULT_VOICE}。")
+                    f"tts_build 不收没有时间戳的结果 —— 建议换回 {default_voice(model, language)}。")
             return result
         except AliTTSError as e:
             if not e.retryable:
@@ -491,27 +529,37 @@ def synthesize(text: str, voice: str = DEFAULT_VOICE, rate=0,
 
 
 def _check_text(voice: str) -> tuple[str, str]:
+    # 小语种音色用数字测试，避免用中文短句测一个仅支持其他语种的音色。
+    if voice.startswith(MODELS[1] + "-"):
+        return "1, 2, 3.", ""
     # 英文音色只支持英文文本；ID 首字母大写的就是英文音色（Andy_v3.1 / Emily_v3.1 …）
     if voice[:1].isupper():
         return "Connection test. This sentence only checks that the API works.", "en"
     return "连接测试，这句话只用来验证接口是否可用。", "zh"
 
 
-def check(voice: str = "", timeout: float = 30.0) -> dict:
+def check(voice: str = "", timeout: float = 30.0, model: str = "",
+          language: str = "") -> dict:
     """连通性自检：用一句短文本试合成。返回可安全打印的状态 dict。"""
+    try:
+        model = resolve_model_token(model)
+        v = resolve_voice_token(voice, default_voice(model, language), model)
+    except AliTTSConfigError as e:
+        return {"ok": False, "stage": "config", "detail": str(e)}
     try:
         cred = load_credentials()
     except AliTTSConfigError as e:
         return {"ok": False, "stage": "key", "detail": str(e)}
-    v = resolve_voice_token(voice)
     text, lang = _check_text(v)
+    if language == "en":
+        text, lang = "Connection test. This sentence checks the speech model.", "en"
     try:
-        r = synthesize(text, voice=v, timeout=timeout, retries=1, language=lang)
+        r = synthesize(text, voice=v, timeout=timeout, retries=1, language=lang, model=model)
     except AliTTSError as e:
-        return {"ok": False, "stage": "api", "voice": v, "key_file": cred["path"],
+        return {"ok": False, "stage": "api", "model": model, "voice": v, "key_file": cred["path"],
                 "detail": str(e)}
     return {
-        "ok": True, "stage": "api", "voice": v,
+        "ok": True, "stage": "api", "model": model, "voice": v,
         "key_file": cred["path"],
         "key_masked": _mask(cred["api_key"]),
         "endpoint": _mask_endpoint(cred["base_url"]),
@@ -523,10 +571,15 @@ def check(voice: str = "", timeout: float = 30.0) -> dict:
 
 
 # ---------------------------------------------------------------- CLI
-def _print_voices() -> None:
-    print(f"阿里云百炼 {MODEL} 内置常用音色（完整 68 个见 ~/ali_tts/docs）：")
-    for i, (name, vid, note) in enumerate(VOICES, 1):
+def _print_voices(model: str = "") -> None:
+    model = resolve_model_token(model)
+    print(f"阿里云百炼 {model} 候选音色（官方目录快照，按模型筛选）：")
+    for i, (name, vid, note) in enumerate(voices_for_model(model), 1):
         print(f"  {i:>2}. {name:<12} {note}\n      {vid}")
+        info = voice_info(vid, model)
+        if info.get("previews"):
+            print(f"      试听：{info['previews'][0]}")
+    print("  可填序号 / 名称 / 完整 voice ID；复刻音色由服务端验证兼容性。")
 
 
 def main() -> int:
@@ -537,6 +590,7 @@ def main() -> int:
     p.add_argument("--synth", default="", help="合成一段文本（可直接贴带 | 的解说词，送之前去掉 |）")
     p.add_argument("--out", default="ali_tts_test.mp3")
     p.add_argument("--voice", default="")
+    p.add_argument("--model", default="", help="plus（默认）/ flash / 完整模型 ID")
     p.add_argument("--rate", default="", help="快百分之几：+8%% / 8 / -10")
     p.add_argument("--lang", default="", help="language_hints，如 zh / en")
     args = p.parse_args()
@@ -545,13 +599,17 @@ def main() -> int:
         os.environ["ALI_TTS_KEY_FILE"] = args.key_file
 
     if args.voices:
-        _print_voices()
+        try:
+            _print_voices(args.model)
+        except AliTTSConfigError as e:
+            print(f"✗ {e}", file=sys.stderr)
+            return 1
         return 0
 
     if args.check:
-        st = check(args.voice)
+        st = check(args.voice, model=args.model, language=args.lang)
         if st["ok"]:
-            print(f"✓ 连接正常 · 音色 {st['voice']} · 音频 {st['audio_bytes']}B · "
+            print(f"✓ 连接正常 · 模型 {st['model']} · 音色 {st['voice']} · 音频 {st['audio_bytes']}B · "
                   f"时间戳 {st['boundaries']} 个 · 输出 {st['output_tokens']} token")
             print(f"  密钥文件: {st['key_file']} · 密钥 {st['key_masked']}")
             print(f"  端点: {st['endpoint']}")
@@ -568,7 +626,8 @@ def main() -> int:
         if text != args.synth:
             print(f"  已去掉切块符 |（和 tts_build 一样），送出：{text}", file=sys.stderr)
         try:
-            r = synthesize(text, voice=args.voice, rate=args.rate, language=args.lang)
+            r = synthesize(text, voice=args.voice, rate=args.rate,
+                           language=args.lang, model=args.model)
         except (AliTTSError, AliTTSConfigError) as e:
             print(f"✗ {e}", file=sys.stderr)
             return 1

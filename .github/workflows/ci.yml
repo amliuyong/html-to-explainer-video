@@ -55,7 +55,8 @@ jobs:
         run: |
           set -e
           npm ci --prefix node --no-audit --no-fund
-          python -m pip install numpy pillow imageio-ffmpeg
+          # 固定已验证的 FFmpeg：新版改变 MP3 停顿 / 解码样本，既有回归夹具不再满足断言（lessons #159）。
+          python -m pip install numpy pillow imageio-ffmpeg==0.6.0
           python -c "import imageio_ffmpeg, os, shutil; d = os.path.join(os.environ['RUNNER_TEMP'], 'ffbin'); os.makedirs(d, exist_ok=True); shutil.copy(imageio_ffmpeg.get_ffmpeg_exe(), os.path.join(d, 'ffmpeg.exe' if os.name == 'nt' else 'ffmpeg')); open(os.environ['GITHUB_PATH'], 'a').write(d + '\\n')"
 
       # --- 仓库自洽性：版本号漂移、风格目录漂移、残留外链 ---
@@ -99,6 +100,9 @@ jobs:
       # --- 阿里 TTS：SSE 多行 data 拼接 / 判错 / 时间戳映射回原文（不联网、不需要密钥）---
       - name: Aliyun TTS regression test
         run: python tests/test_tts_ali.py
+
+      - name: Aliyun model and voice selection regression test
+        run: python tests/test_tts_model_selection.py
 
       # --- 字级时间戳均分：整段每字一样长 / 段尾步长相同时提醒，manifest 记 even_timestamps（lessons #139；不联网）---
       - name: Even timestamp warning regression test

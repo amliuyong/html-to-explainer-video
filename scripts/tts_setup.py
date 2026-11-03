@@ -1,17 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-tts_setup.py —— 配音方案设置向导（选 TTS 引擎 → 配密钥 → 测连接 → 选音色）。
+tts_setup.py —— 配音方案设置向导（选引擎 → 阿里选模型 → 选音色 → 测连接）。
 
 【它在流程里的位置】SKILL.md 的「确认点 3」要求先问用户用哪个 TTS。
-本脚本把那次对话落成可复现的三步，并保证**密钥永不经过对话窗口**：
+本脚本把那次对话落成可复现的选择流程，并保证**密钥永不经过对话窗口**：
 
-  ① 选方案   阿里云百炼 qwen-audio-3.1-tts-flash（默认，密钥在 ~/ali_tts/api_key.csv）
+  ① 选方案   阿里云百炼 qwen-audio-3.1-tts-plus（默认，密钥在 ~/ali_tts/api_key.csv）
             / edge-tts（免费、免密钥、开箱可用）/ 火山引擎语音合成 2.0（需 API Key）
-  ② 配密钥   阿里：读不到密钥文件 → 打印指引 → 退出（NEXT_ACTION=fill_ali_key）
+  ② 选模型   阿里只提供 qwen-audio-3.1-tts-plus / qwen-audio-3.1-tts-flash
+  ③ 选音色   按所选模型列出官方目录与试听 → 写进 project.json
+  ④ 测连接   阿里：读不到密钥文件 → 打印指引 → 退出（NEXT_ACTION=fill_ali_key）
             火山：缺 tts.env → 生成带注释的空模板 → 打印指引 → 退出（NEXT_ACTION=fill_env）
             用户填好回来说一声 → 重跑本脚本（或 --check）→ 测连接
-  ③ 选音色   列出内置常用音色（可自定义 ID）→ 写进 project.json
 
 【密钥纪律】本脚本**从不打印、不落盘、不回显**密钥值；状态摘要走 tts_ali.describe_env() /
 tts_volcano.describe_env()（内部已脱敏）。也不会因为测连接失败而把密钥打进日志。
@@ -22,7 +23,9 @@ tts_volcano.describe_env()（内部已脱敏）。也不会因为测连接失败
   python tts_setup.py --project . --provider volcano       # 选火山（缺 env 则生成模板后退出）
   python tts_setup.py --project . --list-voices            # 列出候选音色
   python tts_setup.py --project . --check                  # 测连接（阿里/火山走真合成；edge 查依赖）
-  python tts_setup.py --project . --provider ali --voice 许玉远   # 一步到位
+  python tts_setup.py --project . --provider ali --list-models
+  python tts_setup.py --project . --provider ali --model plus --list-voices
+  python tts_setup.py --project . --provider ali --model plus --voice 龙安风悦_v3.1
   python tts_setup.py --project .                          # 交互式（人在终端时用）
 
 退出码：0 完成；2 = 需要用户补密钥后再来；1 = 出错。
@@ -78,19 +81,21 @@ EDGE_DEFAULT_ZH = "zh-CN-YunxiNeural"
 EDGE_DEFAULT_EN = "en-US-GuyNeural"
 
 
-def catalog(provider: str) -> list[tuple[str, str, str]]:
-    return {"volcano": tts_volcano.VOICES, "ali": tts_ali.VOICES}.get(provider, EDGE_VOICES)
+def catalog(provider: str, model: str = "") -> list[tuple[str, str, str]]:
+    if provider == "ali":
+        return tts_ali.voices_for_model(model)
+    return tts_volcano.VOICES if provider == "volcano" else EDGE_VOICES
 
 
-def default_voice(provider: str, lang: str = "zh") -> str:
+def default_voice(provider: str, lang: str = "zh", model: str = "") -> str:
     if provider == "volcano":
         return tts_volcano.DEFAULT_VOICE
     if provider == "ali":
-        return tts_ali.DEFAULT_VOICE_EN if lang == "en" else tts_ali.DEFAULT_VOICE
+        return tts_ali.default_voice(model, lang)
     return EDGE_DEFAULT_EN if lang == "en" else EDGE_DEFAULT_ZH
 
 
-def resolve_voice(provider: str, token: str) -> str:
+def resolve_voice(provider: str, token: str, model: str = "") -> str:
     """名称 / 序号 / 原始 ID 都能接受。返回 "" 表示「用户没指定」。"""
     token = (token or "").strip()
     if not token:
@@ -100,7 +105,7 @@ def resolve_voice(provider: str, token: str) -> str:
         return tts_volcano.resolve_voice_token(token)
     if provider == "ali":
         # 别家引擎的 ID（…Neural / …_bigtts）视同「没指定」，回落到默认音色
-        return "" if tts_ali.is_foreign_voice(token) else tts_ali.resolve_voice_token(token)
+        return "" if tts_ali.is_foreign_voice(token) else tts_ali.resolve_voice_token(token, model=model)
     cat = catalog(provider)
     if token.isdigit() and 1 <= int(token) <= len(cat):
         return cat[int(token) - 1][1]
@@ -132,11 +137,21 @@ def _normalize_rate(provider: str, value) -> object:
     return f"{pct:+d}%"
 
 
-def print_voices(provider: str) -> None:
-    label = {"volcano": "火山引擎语音合成 2.0",
-             "ali": f"阿里云百炼 {tts_ali.MODEL}"}.get(provider, "edge-tts")
+def print_models() -> None:
+    print("阿里云百炼候选模型（先选模型，再选音色）：")
+    print(f"  1. Plus（默认）  {tts_ali.MODELS[0]} · 侧重音质与内容制作")
+    print(f"     默认音色：龙安风悦_v3.1 / {tts_ali.DEFAULT_VOICE}")
+    print(f"  2. Flash        {tts_ali.MODELS[1]} · 侧重低延迟与成本")
+    print(f"     中文默认音色：许玉远 / {tts_ali.DEFAULT_VOICE_FLASH}")
+
+
+def print_voices(provider: str, model: str = "") -> None:
+    if provider == "ali":
+        tts_ali._print_voices(model)
+        return
+    label = "火山引擎语音合成 2.0" if provider == "volcano" else "edge-tts"
     print(f"{label} 候选音色：")
-    for i, (name, vid, note) in enumerate(catalog(provider), 1):
+    for i, (name, vid, note) in enumerate(catalog(provider, model), 1):
         print(f"  {i:>2}. {name:<22} {note}")
         print(f"      {vid}")
     print("  （也可以直接给音色 ID 自定义）")
@@ -183,6 +198,8 @@ def cmd_status(proj: str, pj: dict) -> int:
     else:
         rate_shown = str(rate)
     print(f"当前方案：{provider}")
+    if provider == "ali":
+        print(f"当前模型：{tts_ali.resolve_model_token(pj.get('tts_model', ''))}")
     print(f"当前音色：{pj.get('voice') or '(未设置，将用默认)'}")
     print(f"当前语速：{rate_shown}")
     if provider == "volcano":
@@ -208,7 +225,8 @@ def cmd_status(proj: str, pj: dict) -> int:
     return 0
 
 
-def cmd_check(proj: str, provider: str, voice: str) -> int:
+def cmd_check(proj: str, provider: str, voice: str, model: str = "",
+              lang: str = "") -> int:
     print(f"测试方案：{provider}", flush=True)   # flush：否则与 stderr 的错误信息交错乱序
     if provider == "volcano":
         st = tts_volcano.check(proj, voice)
@@ -220,9 +238,9 @@ def cmd_check(proj: str, provider: str, voice: str) -> int:
         print(f"✗ 火山接口未通过（{st['stage']}）\n{st['detail']}", file=sys.stderr)
         return 1
     if provider == "ali":
-        st = tts_ali.check(voice)
+        st = tts_ali.check(voice, model=model, language=lang)
         if st["ok"]:
-            print(f"✓ 阿里云百炼接口连通 · 音色 {st['voice']} · 音频 {st['audio_bytes']}B · "
+            print(f"✓ 阿里云百炼接口连通 · 模型 {st['model']} · 音色 {st['voice']} · 音频 {st['audio_bytes']}B · "
                   f"时间戳 {st['boundaries']} 个 · 输出 {st['output_tokens']} token")
             print(f"  密钥文件 {st['key_file']} · 密钥 {st['key_masked']}")
             if st["warning"]:
@@ -272,7 +290,7 @@ def run(args) -> int:
     if provider not in PROVIDERS:
         if not sys.stdin.isatty():
             print("当前未设置配音方案。可选：", file=sys.stderr)
-            print("  --provider ali      阿里云百炼 qwen-audio-3.1-tts-flash（默认，"
+            print("  --provider ali      阿里云百炼 Plus / Flash（默认 Plus，"
                   "密钥 ~/ali_tts/api_key.csv）", file=sys.stderr)
             print("  --provider edge     免费、免密钥、开箱可用", file=sys.stderr)
             print("  --provider volcano  火山引擎语音合成 2.0，音质更好，需 API Key", file=sys.stderr)
@@ -280,7 +298,7 @@ def run(args) -> int:
             return 1
         choice = interactive_ask(
             "配音用哪个 TTS？",
-            [("阿里云百炼", "qwen-audio-3.1-tts-flash，字级时间戳，密钥已在 ~/ali_tts"),
+            [("阿里云百炼", "先选 Plus / Flash，再选音色；默认 Plus + 龙安风悦_v3.1"),
              ("edge-tts", "免费、免密钥、开箱可用"),
              ("火山引擎语音合成 2.0", "音质更好、需 API Key（约 1 分钟配置）")])
         provider = ("ali" if choice.startswith("阿里")
@@ -291,6 +309,49 @@ def run(args) -> int:
     if pj.get("provider") != provider:
         pj["provider"] = provider
         save_project(proj, pj)
+
+    # ---- 阿里：先选模型，再按该模型选音色 ----
+    model = ""
+    if provider == "ali":
+        if args.model:
+            model = tts_ali.resolve_model_token(args.model)
+        elif not sys.stdin.isatty():
+            print_models()
+            print("NEXT_ACTION=ask_user_model")
+            return 1
+        else:
+            try:
+                current = tts_ali.resolve_model_token(pj.get("tts_model", ""))
+            except tts_ali.AliTTSConfigError:
+                current = tts_ali.MODEL
+            choice = interactive_ask(
+                "阿里云百炼用哪个模型？",
+                [("Plus", "侧重音质与内容制作；默认龙安风悦_v3.1"),
+                 ("Flash", "侧重低延迟与成本；中文默认许玉远")],
+                default_idx=tts_ali.MODELS.index(current))
+            model = tts_ali.resolve_model_token(choice)
+        if pj.get("tts_model") != model:
+            pj["voice"] = ""
+        pj["tts_model"] = model
+        save_project(proj, pj)
+
+    fallback_voice = default_voice(provider, pj.get("lang", "zh"), model)
+    name_or_id = args.voice or ""
+    if not name_or_id:
+        if not sys.stdin.isatty():
+            print_voices(provider, model)
+            print(f"默认音色：{fallback_voice}")
+            print("NEXT_ACTION=ask_user_voice")
+            if provider == "ali":
+                return 1
+            name_or_id = fallback_voice
+        else:
+            print_voices(provider, model)
+            name_or_id = input("音色（填序号 / 名称 / 直接给 ID，回车用默认）：").strip()
+    voice = resolve_voice(provider, name_or_id, model) or fallback_voice
+    pj["voice"] = voice
+    pj["rate"] = _normalize_rate(provider, args.rate or pj.get("rate"))
+    save_project(proj, pj)
 
     # ---- ② 密钥（火山） ----
     if provider == "volcano":
@@ -306,8 +367,7 @@ def run(args) -> int:
             print()
             print("NEXT_ACTION=fill_env")
             return 2
-        voice_for_check = resolve_voice("volcano", args.voice or pj.get("voice", ""))
-        st = tts_volcano.check(proj, voice_for_check)
+        st = tts_volcano.check(proj, voice)
         if not st["ok"]:
             print(f"✗ 密钥已存在但连接未通过（{st['stage']}）：\n{st['detail']}", file=sys.stderr)
             print(f"  tts.env：{env_path}", file=sys.stderr)
@@ -325,33 +385,15 @@ def run(args) -> int:
                   "我不会读取它的内容。", file=sys.stderr)
             print("NEXT_ACTION=fill_ali_key")
             return 2
-        voice_for_check = resolve_voice("ali", args.voice or pj.get("voice", "")) \
-            or default_voice("ali", pj.get("lang", "zh"))
-        st = tts_ali.check(voice_for_check)
+        st = tts_ali.check(voice, model=model, language=pj.get("lang", "zh"))
         if not st["ok"]:
             print(f"✗ 密钥已存在但连接未通过（{st['stage']}）：\n{st['detail']}", file=sys.stderr)
             print(f"  密钥文件：{st.get('key_file', tts_ali.key_file())}", file=sys.stderr)
             return 1
-        print(f"✓ 连接正常 · 音色 {st['voice']} · 密钥 {st['key_masked']}")
-
-    # ---- ③ 选音色 ----
-    fallback_voice = default_voice(provider, pj.get("lang", "zh"))
-    name_or_id = args.voice or ""
-    if not name_or_id:
-        if not sys.stdin.isatty():
-            print(f"未指定音色，使用默认 {fallback_voice}")
-            print("NEXT_ACTION=ask_user_voice")
-            name_or_id = fallback_voice
-        else:
-            print_voices(provider)
-            name_or_id = input("音色（填序号 / 名称 / 直接给 ID，回车用默认）：").strip() or ""
-
-    voice = resolve_voice(provider, name_or_id) or fallback_voice
+        print(f"✓ 连接正常 · 模型 {st['model']} · 音色 {st['voice']} · 密钥 {st['key_masked']}")
 
     # ---- 写回 project.json ----
     pj["provider"] = provider
-    pj["voice"] = voice
-    pj["rate"] = _normalize_rate(provider, args.rate or pj.get("rate"))
     save_project(proj, pj)
 
     print()
@@ -362,7 +404,8 @@ def run(args) -> int:
         rate_shown = f"{pj['rate']}（= 倍速 {tts_ali.rate_multiplier(pj['rate'])}）"
     else:
         rate_shown = pj["rate"]
-    print(f"  方案 {provider} · 音色 {voice} · 语速 {rate_shown}")
+    model_shown = f" · 模型 {model}" if provider == "ali" else ""
+    print(f"  方案 {provider}{model_shown} · 音色 {voice} · 语速 {rate_shown}")
     print("  下一步：python <skill>/scripts/tts_build.py --project .")
     print("NEXT_ACTION=done")
     return 0
@@ -373,10 +416,12 @@ def main() -> int:
     p.add_argument("--project", default=".")
     p.add_argument("--provider", default="", choices=["", *PROVIDERS])
     p.add_argument("--voice", default="")
+    p.add_argument("--model", default="", help="阿里模型：plus / flash / 完整模型 ID")
     p.add_argument("--rate", default="")
     p.add_argument("--status", action="store_true", help="显示当前配置与脱敏密钥状态")
     p.add_argument("--check", action="store_true", help="只测连接")
     p.add_argument("--list-voices", action="store_true", help="列出候选音色")
+    p.add_argument("--list-models", action="store_true", help="列出阿里 Plus / Flash 模型")
     p.add_argument("--env-file", default="", help="显式指定 tts.env（火山，仅本次）")
     p.add_argument("--key-file", default="", help="显式指定阿里密钥 CSV（仅本次）")
     args = p.parse_args()
@@ -390,12 +435,24 @@ def main() -> int:
     provider = (args.provider or os.environ.get("TTS_PROVIDER")
                 or pj.get("provider") or DEFAULT_PROVIDER).lower()
 
-    if args.list_voices:
-        print_voices(provider)
-        return 0
-    if args.check:
-        return cmd_check(proj, provider, resolve_voice(provider, args.voice))
-    return run(args)
+    try:
+        if args.list_models:
+            print_models()
+            return 0
+        model = ""
+        if (args.list_voices or args.check) and provider == "ali":
+            model = tts_ali.resolve_model_token(args.model or pj.get("tts_model", ""))
+        if args.list_voices:
+            print_voices(provider, model)
+            return 0
+        if args.check:
+            voice = resolve_voice(provider, args.voice or pj.get("voice", ""), model) \
+                or default_voice(provider, pj.get("lang", "zh"), model)
+            return cmd_check(proj, provider, voice, model, pj.get("lang", "zh"))
+        return run(args)
+    except tts_ali.AliTTSConfigError as e:
+        print(f"✗ {e}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

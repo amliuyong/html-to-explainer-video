@@ -183,3 +183,10 @@ v2.0 新增了动效库、快门运动模糊、多浏览器并行渲染、画质
 | `assets/gsap-README.md` | GSAP 许可参考；并保持 `gsap.min.js` 内的版权头完整 |
 
 *最后审阅：2026-09-30（v2.0）。*
+
+## 阿里云 Qwen-Audio-TTS 音色目录
+
+`references/ali-voices.json` 中的名称、voice ID、语种、地域、特性与试听链接来自
+[阿里云百炼官方音色列表](https://docs.bailian.console.aliyun.com/zh/model-studio/qwen-audio-tts-voice-list)，
+整理日期为 2026-11-03。音频仍由官方链接提供，本仓库不包含或再分发试听音频。
+模型服务及试听音频的权利归各自权利人；本项目的 MIT 许可适用于原创代码。

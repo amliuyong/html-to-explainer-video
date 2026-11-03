@@ -165,7 +165,8 @@ async def fake_synth(text, out_path, voice, rate, **kw):
 tb.synth = fake_synth
 with tempfile.TemporaryDirectory() as d:
     with open(os.path.join(d, "project.json"), "w", encoding="utf-8") as f:
-        json.dump({"provider": "ali", "voice": "xuyuyuan_v3.1", "rate": "+28%"}, f)
+        json.dump({"provider": "ali", "tts_model": "qwen-audio-3.1-tts-flash",
+                   "voice": "xuyuyuan_v3.1", "rate": "+28%"}, f)
     with open(os.path.join(d, "narration.json"), "w", encoding="utf-8") as f:
         json.dump([{"id": k, "text": "占位"} for k in SAMPLES], f, ensure_ascii=False)
     err = io.StringIO()
